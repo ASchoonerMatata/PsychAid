@@ -16,7 +16,7 @@ app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
 from scales_data import SCALES
 from report_generator import load_config, save_config, generate_report, report_to_docx
-from providers import PROVIDERS, ProviderError, resolve_provider
+from providers import PROVIDERS, ProviderError, auth_status, resolve_provider
 from pdf_forms import get_pdf_bytes
 
 def _sanitize_download_name(value):
@@ -33,11 +33,17 @@ def upload_too_large(error):
 
 @app.route('/')
 def index():
-    return render_template('assessment.html', scales=SCALES)
+    cfg = load_config()
+    return render_template(
+        'assessment.html', scales=SCALES, auth_status=auth_status(cfg)
+    )
 
 @app.route('/assessment')
 def assessment():
-    return render_template('assessment.html', scales=SCALES)
+    cfg = load_config()
+    return render_template(
+        'assessment.html', scales=SCALES, auth_status=auth_status(cfg)
+    )
 
 @app.route('/settings')
 def settings():

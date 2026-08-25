@@ -171,3 +171,25 @@ def resolve_provider(cfg):
         raise ProviderError(f'Unknown authentication mode: {auth_mode}.')
 
     return provider, api_key, model
+
+
+def auth_status(cfg):
+    provider_name = cfg.get('provider') or 'anthropic'
+    provider = PROVIDERS.get(provider_name)
+    label = provider['label'] if provider else provider_name
+    try:
+        resolved_provider, _, _ = resolve_provider(cfg)
+        label = resolved_provider['label']
+    except ProviderError as error:
+        return {
+            'configured': False,
+            'provider': provider_name,
+            'label': label,
+            'reason': str(error)
+        }
+    return {
+        'configured': True,
+        'provider': provider_name,
+        'label': label,
+        'reason': ''
+    }

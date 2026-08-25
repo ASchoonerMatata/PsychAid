@@ -58,7 +58,7 @@ def selftest():
     from app import app
     from scales_data import SCALES
     from pdf_forms import get_pdf_bytes
-    from report_generator import report_to_docx
+    from report_generator import load_skill_prompt, report_to_docx
     c = app.test_client()
     assert c.get('/').status_code == 200, 'index failed'
     assert c.get('/settings').status_code == 200, 'settings failed'
@@ -67,6 +67,7 @@ def selftest():
                 if (b := get_pdf_bytes(sk, r, client_name='Test'))), None)
     assert pdf and pdf[:4] == b'%PDF', f'no PDF produced for {sk}'
     assert report_to_docx('Hello', 'Test')[:2] == b'PK', 'no DOCX produced'
+    assert len(load_skill_prompt()) > 10000, '4Thought report skill was not loaded'
     print('selftest OK')
 
 

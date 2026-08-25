@@ -10,6 +10,15 @@
       <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
       AI Report Generation
     </div>
+    {% if not auth_status.configured %}
+    <div class="setup-banner" id="auth-setup-banner" role="status">
+      <div>
+        <h2>Set up an AI provider to generate reports</h2>
+        <p>PsychAid needs either an API key or a configured subscription credential before it can draft a report with {{ auth_status.label }}.</p>
+      </div>
+      <a class="btn btn-primary" href="/settings">Open Settings</a>
+    </div>
+    {% endif %}
     <div class="field-row">
       <div class="field-group">
         <label>Client Name</label>
@@ -26,7 +35,7 @@
     </div>
     <div id="file-list" class="file-list"></div>
     <div style="margin-top:16px">
-      <button class="btn btn-primary" id="generate-btn" onclick="generateReport()">
+      <button class="btn btn-primary" id="generate-btn" onclick="generateReport()"{% if not auth_status.configured %} disabled title="Open Settings to configure an AI provider before generating a report."{% endif %}>
         <div class="spinner"></div>
         <span class="btn-label">Generate Report</span>
       </button>

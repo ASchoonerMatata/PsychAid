@@ -11,8 +11,8 @@ import report_generator
 import app as app_module
 from app import _sanitize_download_name, app
 from pdf_forms import get_pdf_bytes
-from providers import PROVIDERS, ProviderError, _gemini_generate, resolve_provider
-from report_generator import _normalise_config, extract_text, load_config, report_to_docx, save_config
+from providers import PROVIDERS, ProviderError, _gemini_generate, auth_status, resolve_provider
+from report_generator import _normalise_config, extract_text, load_config, load_skill_prompt, report_to_docx, save_config
 
 
 def _sentinel_credential():
@@ -209,6 +209,51 @@ def test_extract_text_unknown_extension_replaces_invalid_utf8():
     assert extract_text(b"valid\xfftail", "notes.unknown") == "valid\ufffdtail"
 
 
+def test_load_skill_prompt_returns_body_without_frontmatter():
+    prompt = load_skill_prompt()
+
+    assert "You are a **drafter, not a clinician**" in prompt
+    assert "description:" not in prompt
+
+
+def test_auth_status_api_key_mode_without_key_is_unconfigured():
+    status = auth_status({
+        "provider": "anthropic",
+        "auth_mode": "api_key",
+        "api_keys": {},
+    })
+
+    assert status["configured"] is False
+    assert status["reason"]
+
+
+def test_auth_status_api_key_mode_with_key_is_configured():
+    status = auth_status({
+        "provider": "anthropic",
+        "auth_mode": "api_key",
+        "api_keys": {"anthropic": _sentinel_credential()},
+    })
+
+    assert status["configured"] is True
+
+
+def test_auth_status_subscription_without_environment_is_unconfigured(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    status = auth_status({"provider": "gemini", "auth_mode": "subscription"})
+
+    assert status["configured"] is False
+    assert status["reason"]
+
+
+def test_auth_status_subscription_with_environment_is_configured(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", _sentinel_credential())
+
+    status = auth_status({"provider": "gemini", "auth_mode": "subscription"})
+
+    assert status["configured"] is True
+
+
 @pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits only")
 def test_save_config_writes_private_file(tmp_path, monkeypatch):
     config_path = tmp_path / "PsychAid" / "config.json"
@@ -251,6 +296,31 @@ def client(tmp_path, monkeypatch):
 def test_page_routes_return_success(client):
     assert client.get("/").status_code == 200
     assert client.get("/settings").status_code == 200
+
+
+def test_index_shows_setup_banner_when_unconfigured(client):
+    response = client.get("/")
+
+    assert b"Set up an AI provider to generate reports" in response.data
+
+
+def test_index_hides_setup_banner_when_key_is_saved(client):
+    save_config({
+        "provider": "anthropic",
+        "auth_mode": "api_key",
+        "api_keys": {"anthropic": _sentinel_credential()},
+    })
+
+    response = client.get("/")
+
+    assert b"Set up an AI provider to generate reports" not in response.data
+
+
+def test_index_lists_rating_forms_when_unconfigured(client):
+    response = client.get("/")
+
+    assert b"Downloadable Rating Forms" in response.data
+    assert b"GAD-7" in response.data
 
 
 def test_settings_page_never_renders_saved_key(client):

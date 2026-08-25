@@ -52,6 +52,7 @@ jobs:
         run: |
           pyinstaller --noconfirm --clean --windowed --name PsychAid \
             --add-data "templates:templates" --add-data "static:static" \
+            --add-data "skill:skill" \
             --collect-all webview \
             main.py
           ./dist/PsychAid/PsychAid.exe --selftest
@@ -68,6 +69,7 @@ jobs:
           pyinstaller --noconfirm --clean --windowed --name PsychAid \
             --osx-bundle-identifier com.psychaid.app \
             --add-data "templates:templates" --add-data "static:static" \
+            --add-data "skill:skill" \
             --collect-all webview \
             main.py
           ./dist/PsychAid.app/Contents/MacOS/PsychAid --selftest

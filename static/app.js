@@ -62,6 +62,10 @@ function downloadForm(sk, rater) {
 }
 
 async function generateReport() {
+    if (document.getElementById('auth-setup-banner')) {
+        showToast('Set up an AI provider in Settings before generating a report.', 'error');
+        return;
+    }
     if (fileList.length === 0) { showToast('Please upload at least one document.', 'error'); return; }
     const btn = document.getElementById('generate-btn');
     btn.classList.add('generating'); btn.disabled = true;

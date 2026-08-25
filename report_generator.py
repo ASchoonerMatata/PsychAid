@@ -1,4 +1,4 @@
-import os, json, platform, io, tempfile
+import os, json, platform, io, sys, tempfile
 
 from providers import resolve_provider
 
@@ -96,6 +96,31 @@ For the Recommendations section, include relevant recommendations based on the p
 Use professional clinical language appropriate for Australian psychological practice.
 Do not fabricate information not present in the source documents."""
 
+_SKILL_PROMPT = None
+
+def load_skill_prompt():
+    global _SKILL_PROMPT
+    if _SKILL_PROMPT is not None:
+        return _SKILL_PROMPT
+
+    if getattr(sys, 'frozen', False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base, 'skill', '4thought-report', 'SKILL.md')
+
+    try:
+        with open(path, encoding='utf-8') as f:
+            text = f.read()
+        lines = text.splitlines(keepends=True)
+        delimiters = [i for i, line in enumerate(lines) if line.strip() == '---']
+        if delimiters and delimiters[0] == 0 and len(delimiters) > 1:
+            text = ''.join(lines[delimiters[1] + 1:])
+        _SKILL_PROMPT = text or SYSTEM_PROMPT
+    except (OSError, UnicodeError):
+        _SKILL_PROMPT = SYSTEM_PROMPT
+    return _SKILL_PROMPT
+
 def generate_report(files, cfg):
     all_text = []
     for fname, fbytes in files:
@@ -109,7 +134,7 @@ def generate_report(files, cfg):
     
     provider, api_key, model = resolve_provider(cfg)
     return provider['generate'](
-        SYSTEM_PROMPT,
+        load_skill_prompt(),
         f"Please generate a psychological report based on the following documents:\n\n{combined}",
         api_key,
         model
