@@ -8,11 +8,10 @@ Download the file for your machine from the [latest release](../../releases/late
 
 | Machine | File | What to do |
 |---|---|---|
-| Windows | `PsychAid-windows-x64.exe` | Double-click it. |
-| Mac (Apple Silicon, M1–M4) | `PsychAid-macos-arm64.dmg` | Open the .dmg, drag PsychAid to Applications. |
-| Mac (Intel) | `PsychAid-macos-intel.dmg` | Open the .dmg, drag PsychAid to Applications. |
+| Windows | `PsychAid-windows-x64.zip` | Download the .zip, extract it, then run `PsychAid.exe`. |
+| Mac (Apple Silicon only, M1–M4) | `PsychAid-macos-arm64.dmg` | Open the .dmg and drag PsychAid to Applications, which puts it in Launchpad and Spotlight. |
 
-Python is **not** required — it is bundled inside the download.
+Windows 10 and Windows 11 are both supported, and Python is **not** required.
 
 ### First launch
 
@@ -37,7 +36,7 @@ Releases are built by GitHub Actions (`.github/workflows/release.yml`) on any `v
 git tag v1.0.0 && git push origin v1.0.0
 ```
 
-Windows, Apple Silicon and Intel builds are attached to a **draft** release —
+Windows and Apple Silicon builds are attached to a **draft** release —
 review it on the Releases page, then publish.
 
 ## Running from source (developers)

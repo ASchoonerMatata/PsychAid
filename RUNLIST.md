@@ -5,8 +5,8 @@ Ordered so large changes land first and verification happens after them.
 | # | Task | Status |
 |---|------|--------|
 | 0 | Recon: identify AI provider, locate Gemini demo key, inventory tests | done |
-| 1 | Provider interface + Anthropic and Gemini implementations | pending |
-| 2 | Settings UI: pick provider, API key **or** subscription/env auth | pending |
+| 1 | Provider interface + Anthropic and Gemini implementations | done |
+| 2 | Settings UI: pick provider, API key **or** subscription/env auth | done |
 | 3 | Packaging: Start Menu / Applications entry, Win10 + Win11, no preinstalled Python | pending |
 | 4 | Test suite: unit + integration + live provider smoke | pending |
 | 5 | Security review incl. proof no API key is baked into any release artifact | pending |

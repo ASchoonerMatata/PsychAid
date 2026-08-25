@@ -21,14 +21,13 @@ jobs:
     needs: create-release
     strategy:
       fail-fast: false
+      # Intel Macs dropped: macos-13 runners queue for hours. Apple Silicon is the shipped Mac target.
       matrix:
         include:
           - os: windows-latest
-            asset: PsychAid-windows-x64.exe
+            asset: PsychAid-windows-x64.zip
           - os: macos-14
             asset: PsychAid-macos-arm64.dmg
-          - os: macos-13
-            asset: PsychAid-macos-intel.dmg
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -46,12 +45,12 @@ jobs:
       - name: Build (Windows)
         if: runner.os == 'Windows'
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name PsychAid \
+          pyinstaller --noconfirm --clean --windowed --name PsychAid \
             --add-data "templates:templates" --add-data "static:static" \
             --collect-all webview \
             main.py
-          mv dist/PsychAid.exe "${{ matrix.asset }}"
-          ./"${{ matrix.asset }}" --selftest
+          ./dist/PsychAid/PsychAid.exe --selftest
+          powershell -NoProfile -Command "Compress-Archive -Path 'dist/PsychAid' -DestinationPath '${{ matrix.asset }}' -Force"
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
@@ -62,7 +61,10 @@ jobs:
             --collect-all webview \
             main.py
           ./dist/PsychAid.app/Contents/MacOS/PsychAid --selftest
-          hdiutil create -volname PsychAid -srcfolder dist/PsychAid.app \
+          mkdir -p dmg-stage
+          cp -R dist/PsychAid.app dmg-stage/
+          ln -s /Applications dmg-stage/Applications
+          hdiutil create -volname PsychAid -srcfolder dmg-stage \
             -ov -format UDZO "${{ matrix.asset }}"
 
       - name: Upload to release
