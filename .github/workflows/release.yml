@@ -52,7 +52,9 @@ jobs:
           ./dist/PsychAid/PsychAid.exe --selftest
           curl -L -o installer/MicrosoftEdgeWebview2Setup.exe https://go.microsoft.com/fwlink/p/?LinkId=2124703
           choco install innosetup -y --no-progress
-          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" /DMyAppVersion=${GITHUB_REF_NAME#v} /O. installer/psychaid.iss
+          # MSYS2_ARG_CONV_EXCL stops Git Bash rewriting /D and /O into Windows paths
+          MSYS2_ARG_CONV_EXCL='*' "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" \
+            /DMyAppVersion=${GITHUB_REF_NAME#v} /O. installer/psychaid.iss
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
