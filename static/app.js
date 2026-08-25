@@ -22,13 +22,26 @@ function removeFile(idx) { fileList.splice(idx, 1); renderFileList(); }
 function renderFileList() {
     const el = document.getElementById('file-list');
     if (!el) return;
-    el.innerHTML = fileList.map((f, i) => `
-        <div class="file-item">
-            <span>📄</span>
-            <span>${f.name}</span>
-            <span style="color:var(--muted);font-size:.8rem">${(f.size/1024).toFixed(1)} KB</span>
-            <button onclick="removeFile(${i})" title="Remove">✕</button>
-        </div>`).join('');
+    el.replaceChildren();
+    fileList.forEach((f, i) => {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+
+        const icon = document.createElement('span');
+        icon.textContent = '📄';
+        const name = document.createElement('span');
+        name.textContent = f.name;
+        const size = document.createElement('span');
+        size.style.cssText = 'color:var(--muted);font-size:.8rem';
+        size.textContent = `${(f.size/1024).toFixed(1)} KB`;
+        const remove = document.createElement('button');
+        remove.title = 'Remove';
+        remove.textContent = '✕';
+        remove.addEventListener('click', () => removeFile(i));
+
+        item.append(icon, name, size, remove);
+        el.appendChild(item);
+    });
 }
 
 // The webview has no download handler, so an attachment navigation is silently

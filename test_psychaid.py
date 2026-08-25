@@ -8,10 +8,11 @@ from pathlib import Path
 import pytest
 
 import report_generator
-from app import app
+import app as app_module
+from app import _sanitize_download_name, app
 from pdf_forms import get_pdf_bytes
 from providers import PROVIDERS, ProviderError, _gemini_generate, resolve_provider
-from report_generator import _normalise_config, extract_text, load_config, report_to_docx
+from report_generator import _normalise_config, extract_text, load_config, report_to_docx, save_config
 
 
 def _sentinel_credential():
@@ -208,6 +209,22 @@ def test_extract_text_unknown_extension_replaces_invalid_utf8():
     assert extract_text(b"valid\xfftail", "notes.unknown") == "valid\ufffdtail"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits only")
+def test_save_config_writes_private_file(tmp_path, monkeypatch):
+    config_path = tmp_path / "PsychAid" / "config.json"
+    monkeypatch.setattr(report_generator, "_config_path", lambda: str(config_path))
+
+    save_config({"provider": "anthropic"})
+
+    assert config_path.parent.stat().st_mode & 0o777 == 0o700
+    assert config_path.stat().st_mode & 0o777 == 0o600
+
+    config_path.chmod(0o644)
+    save_config({"provider": "gemini"})
+
+    assert config_path.stat().st_mode & 0o777 == 0o600
+
+
 def test_report_to_docx_returns_zip_and_numbered_line_is_heading():
     from docx import Document
 
@@ -279,11 +296,91 @@ def test_generate_report_requires_files(client):
     assert client.post("/api/generate-report").status_code == 400
 
 
+def test_generate_report_rejects_more_than_twenty_files(client):
+    files = [(io.BytesIO(b"text"), f"notes-{i}.txt") for i in range(21)]
+
+    response = client.post(
+        "/api/generate-report",
+        data={"files": files},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "No more than 20 files may be uploaded."}
+
+
+@pytest.mark.parametrize("filename", ["legacy.doc", "script.html", "no-extension"])
+def test_generate_report_rejects_unsupported_extension(client, filename):
+    response = client.post(
+        "/api/generate-report",
+        data={"files": (io.BytesIO(b"content"), filename)},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert filename in response.get_json()["error"]
+    assert ".pdf, .docx, .txt" in response.get_json()["error"]
+
+
+def test_generate_report_rejects_request_over_25_mb(client):
+    response = client.post(
+        "/api/generate-report",
+        data=b"x" * (25 * 1024 * 1024 + 1),
+        content_type="application/octet-stream",
+    )
+
+    assert response.status_code == 413
+    assert response.get_json() == {
+        "error": "Uploaded files are too large (25 MB limit)."
+    }
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (" Jane  Doe ", "Jane_Doe"),
+        ("../Jane\\Doe\n", "..JaneDoe"),
+        ("\x00\r\n/\\", "Client"),
+        ("x" * 81, "x" * 80),
+    ],
+)
+def test_sanitize_download_name(value, expected):
+    assert _sanitize_download_name(value) == expected
+
+
+def test_generate_report_sanitizes_download_filename(client, monkeypatch):
+    monkeypatch.setattr(app_module, "generate_report", lambda files, cfg: "Report")
+    monkeypatch.setattr(app_module, "report_to_docx", lambda text, name: b"document")
+
+    response = client.post(
+        "/api/generate-report",
+        data={
+            "files": (io.BytesIO(b"content"), "notes.txt"),
+            "client_name": "Jane\n/ Doe",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert "Jane_Doe_Report.docx" in response.headers["Content-Disposition"]
+
+
+def test_upload_list_renders_filename_as_text():
+    source = (Path(__file__).parent / "static" / "app.js").read_text(encoding="utf-8")
+    render = source.split("function renderFileList()", 1)[1].split("\n}\n", 1)[0]
+
+    assert "innerHTML" not in render
+    assert "name.textContent = f.name" in render
+    assert "replaceChildren()" in render
+    assert "addEventListener('click'" in render
+
+
 def test_download_form_returns_pdf_or_404(client):
-    response = client.get("/api/download-form/gad7/self")
+    response = client.get("/api/download-form/gad7/self?name=Jane%0A%2F%20Doe")
 
     assert response.status_code == 200
     assert response.data.startswith(b"%PDF")
+    assert "Jane_Doe_GAD-7_Self.pdf" in response.headers["Content-Disposition"]
     assert client.get("/api/download-form/not-a-scale/not-a-rater").status_code == 404
 
 

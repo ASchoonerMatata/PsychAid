@@ -7,9 +7,9 @@ Ordered so large changes land first and verification happens after them.
 | 0 | Recon: identify AI provider, locate Gemini demo key, inventory tests | done |
 | 1 | Provider interface + Anthropic and Gemini implementations | done |
 | 2 | Settings UI: pick provider, API key **or** subscription/env auth | done |
-| 3 | Packaging: Start Menu / Applications entry, Win10 + Win11, no preinstalled Python | pending |
-| 4 | Test suite: unit + integration + live provider smoke | pending |
-| 5 | Security review incl. proof no API key is baked into any release artifact | pending |
+| 3 | Packaging: Start Menu / Applications entry, Win10 + Win11, no preinstalled Python | done |
+| 4 | Test suite: unit + integration + live provider smoke | done |
+| 5 | Security review incl. proof no API key is baked into any release artifact | done |
 | 6 | End-to-end verification: CI, Windows 11 VM, Windows 10 VM, macOS arm64 | pending |
 | 7 | Final release + report | pending |
 

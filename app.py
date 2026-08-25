@@ -1,4 +1,4 @@
-import os, sys, json
+import os, sys, json, unicodedata
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = sys._MEIPASS
@@ -12,11 +12,24 @@ app = Flask(__name__,
     template_folder=os.path.join(BASE_DIR, 'templates'),
     static_folder=os.path.join(BASE_DIR, 'static'))
 app.secret_key = 'psychaid-secret-2024'
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 
 from scales_data import SCALES
 from report_generator import load_config, save_config, generate_report, report_to_docx
 from providers import PROVIDERS, ProviderError, resolve_provider
 from pdf_forms import get_pdf_bytes
+
+def _sanitize_download_name(value):
+    value = value if isinstance(value, str) else ''
+    value = ''.join(
+        char for char in value
+        if char not in '/\\' and not unicodedata.category(char).startswith('C')
+    )
+    return '_'.join(value.split())[:80] or 'Client'
+
+@app.errorhandler(413)
+def upload_too_large(error):
+    return jsonify({'error': 'Uploaded files are too large (25 MB limit).'}), 413
 
 @app.route('/')
 def index():
@@ -97,21 +110,28 @@ def test_provider():
 
 @app.route('/api/generate-report', methods=['POST'])
 def api_generate_report():
-    cfg = load_config()
+    uploads = request.files.getlist('files')
+    if len(uploads) > 20:
+        return jsonify({'error': 'No more than 20 files may be uploaded.'}), 400
 
-    files = []
-    for f in request.files.getlist('files'):
-        files.append((f.filename, f.read()))
+    for f in uploads:
+        if os.path.splitext(f.filename or '')[1].lower() not in ('.pdf', '.docx', '.txt'):
+            return jsonify({
+                'error': f'Unsupported file type for "{f.filename}". Allowed types: .pdf, .docx, .txt.'
+            }), 400
+
+    files = [(f.filename, f.read()) for f in uploads]
     
     if not files:
         return jsonify({'error': 'No files uploaded.'}), 400
-    
+
+    cfg = load_config()
     try:
         report_text = generate_report(files, cfg)
         client_name = request.form.get('client_name', '')
         docx_bytes = report_to_docx(report_text, client_name)
         
-        filename = f"{client_name.replace(' ','_')}_Report.docx" if client_name else "PsychAid_Report.docx"
+        filename = f"{_sanitize_download_name(client_name)}_Report.docx"
         return send_file(
             io.BytesIO(docx_bytes),
             mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -131,7 +151,7 @@ def download_form(sk, rater):
         return jsonify({'error': 'Form not found'}), 404
     from scales_data import SCALES
     scale_name = SCALES.get(sk, {}).get('name', sk.upper())
-    fname = f"{client_name.replace(' ','_')}_{scale_name}_{rater.capitalize()}.pdf"
+    fname = f"{_sanitize_download_name(client_name)}_{scale_name}_{rater.capitalize()}.pdf"
     # Serve inline so native webview displays the PDF (user presses Back to return)
     return send_file(
         io.BytesIO(pdf_bytes),

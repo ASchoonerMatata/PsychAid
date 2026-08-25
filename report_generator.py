@@ -1,4 +1,4 @@
-import os, json, platform, io
+import os, json, platform, io, tempfile
 
 from providers import resolve_provider
 
@@ -25,9 +25,23 @@ def load_config():
 
 def save_config(data):
     p = _config_path()
-    os.makedirs(os.path.dirname(p), exist_ok=True)
-    with open(p, 'w') as f:
-        json.dump(_normalise_config(data), f)
+    directory = os.path.dirname(p)
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    fd, temp_path = tempfile.mkstemp(dir=directory)
+    try:
+        with os.fdopen(fd, 'w') as f:
+            json.dump(_normalise_config(data), f)
+        try:
+            os.chmod(temp_path, 0o600)
+        except OSError:
+            pass
+        os.replace(temp_path, p)
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
 
 def _normalise_config(data):
     data = data if isinstance(data, dict) else {}
@@ -57,7 +71,7 @@ def extract_text(file_bytes, filename):
         import pypdf
         reader = pypdf.PdfReader(io.BytesIO(file_bytes))
         return '\n'.join(p.extract_text() or '' for p in reader.pages)
-    elif ext in ('.docx', '.doc'):
+    elif ext == '.docx':
         import mammoth
         result = mammoth.extract_raw_text(io.BytesIO(file_bytes))
         return result.value
