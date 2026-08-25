@@ -1,5 +1,7 @@
 import os, json, platform, io
 
+from providers import resolve_provider
+
 def _config_path():
     s = platform.system()
     if s == 'Windows':
@@ -14,14 +16,40 @@ def load_config():
     p = _config_path()
     if os.path.exists(p):
         with open(p) as f:
-            return json.load(f)
-    return {}
+            raw = json.load(f)
+        cfg = _normalise_config(raw)
+        if cfg != raw:
+            save_config(cfg)
+        return cfg
+    return _normalise_config({})
 
 def save_config(data):
     p = _config_path()
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, 'w') as f:
-        json.dump(data, f)
+        json.dump(_normalise_config(data), f)
+
+def _normalise_config(data):
+    data = data if isinstance(data, dict) else {}
+    keys = data.get('api_keys') if isinstance(data.get('api_keys'), dict) else {}
+    keys = {
+        name: value for name, value in keys.items()
+        if isinstance(name, str) and isinstance(value, str)
+    }
+
+    legacy_key = data.get('api_key')
+    if isinstance(legacy_key, str) and legacy_key.strip() and not keys.get('anthropic'):
+        keys['anthropic'] = legacy_key.strip()
+
+    provider = data.get('provider') if isinstance(data.get('provider'), str) else 'anthropic'
+    model = data.get('model') if isinstance(data.get('model'), str) else ''
+    auth_mode = data.get('auth_mode') if data.get('auth_mode') in ('api_key', 'subscription') else 'api_key'
+    return {
+        'provider': provider or 'anthropic',
+        'model': model.strip(),
+        'auth_mode': auth_mode,
+        'api_keys': keys
+    }
 
 def extract_text(file_bytes, filename):
     ext = os.path.splitext(filename)[1].lower()
@@ -54,10 +82,7 @@ For the Recommendations section, include relevant recommendations based on the p
 Use professional clinical language appropriate for Australian psychological practice.
 Do not fabricate information not present in the source documents."""
 
-def generate_report(files, api_key):
-    import anthropic
-    client = anthropic.Anthropic(api_key=api_key)
-    
+def generate_report(files, cfg):
     all_text = []
     for fname, fbytes in files:
         try:
@@ -68,16 +93,13 @@ def generate_report(files, api_key):
     
     combined = '\n\n'.join(all_text)
     
-    response = client.messages.create(
-        model='claude-opus-4-5',
-        max_tokens=8000,
-        system=SYSTEM_PROMPT,
-        messages=[{
-            'role': 'user',
-            'content': f"Please generate a psychological report based on the following documents:\n\n{combined}"
-        }]
+    provider, api_key, model = resolve_provider(cfg)
+    return provider['generate'](
+        SYSTEM_PROMPT,
+        f"Please generate a psychological report based on the following documents:\n\n{combined}",
+        api_key,
+        model
     )
-    return response.content[0].text
 
 def report_to_docx(text, client_name=''):
     from docx import Document

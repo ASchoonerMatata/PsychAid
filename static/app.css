@@ -24,8 +24,8 @@ a{color:inherit;text-decoration:none}
 .field-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .field-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px}
 .field-group label{font-size:.82rem;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.04em}
-.field-group input{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:.93rem;outline:none;transition:border-color .15s}
-.field-group input:focus{border-color:var(--teal)}
+.field-group input,.field-group select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font:inherit;font-size:.93rem;color:#1f2937;background:#fff;outline:none;transition:border-color .15s,box-shadow .15s}
+.field-group input:focus,.field-group select:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(82,183,136,.13)}
 /* Buttons */
 .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:7px;font-size:.92rem;font-weight:600;cursor:pointer;border:none;transition:background .15s,transform .1s}
 .btn:active{transform:scale(.98)}
@@ -33,6 +33,9 @@ a{color:inherit;text-decoration:none}
 .btn-primary:hover{background:var(--navy2)}
 .btn-save{background:var(--teal);color:#fff}
 .btn-save:hover{background:#3da86e}
+.btn-secondary{background:#fff;color:var(--navy);border:1px solid #b9c5d5}
+.btn-secondary:hover{background:#f3f6fa;border-color:#91a2ba}
+.btn:disabled{cursor:wait;opacity:.72}
 .btn-dl{background:#fff;color:var(--navy);border:1.5px solid #c3d0df;width:100%;justify-content:center;padding:8px 10px;font-size:.84rem}
 .btn-dl:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
 /* Forms grid */
@@ -47,9 +50,31 @@ a{color:inherit;text-decoration:none}
 .toast.error{background:#991b1b;color:#fff}
 .toast.info{background:var(--navy);color:#fff}
 /* Settings */
-.settings-form{max-width:480px}
+.settings-form{max-width:560px}
 .settings-form .field-group{margin-bottom:16px}
-.settings-form input{width:100%}
+.settings-form input,.settings-form select{width:100%}
+.settings-form fieldset{border:0}
+.settings-form legend{font-size:.82rem;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px}
+.auth-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.radio-card{display:flex;align-items:flex-start;gap:9px;padding:12px;border:1px solid var(--border);border-radius:7px;background:#f8fafc;cursor:pointer;transition:border-color .15s,background .15s}
+.radio-card:hover{border-color:#a9b7ca;background:#f3f7fb}
+.radio-card:has(input:checked){border-color:var(--teal);background:#f0fdf6;box-shadow:inset 0 0 0 1px rgba(82,183,136,.18)}
+.radio-card input{width:auto;margin-top:3px;accent-color:var(--teal)}
+.radio-card span{display:flex;flex-direction:column;gap:3px}
+.radio-card strong{font-size:.88rem;color:var(--navy)}
+.radio-card small{font-size:.77rem;line-height:1.35;color:var(--muted)}
+.optional{font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0}
+.field-help,.test-note{font-size:.8rem;color:var(--muted);margin-top:2px}
+.credential-note{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-top:2px}
+.key-status{font-weight:700;color:#9a3412;background:#fff7ed;border-radius:999px;padding:2px 8px}
+.key-status.has-key{color:#166534;background:#dcfce7}
+.settings-actions{display:flex;gap:10px;align-items:center;margin-top:4px}
+.test-note{margin-top:8px}
+.button-spinner{display:none;width:15px;height:15px;border:2px solid rgba(26,45,79,.25);border-top-color:var(--navy);border-radius:50%;animation:spin .7s linear infinite}
+.testing .button-spinner{display:block}
+.testing .test-icon{display:none}
+[hidden]{display:none!important}
+@media(max-width:620px){.auth-options{grid-template-columns:1fr}.settings-actions{align-items:stretch;flex-direction:column}.settings-actions .btn{justify-content:center;width:100%}}
 /* Spinner */
 .spinner{display:none;width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}

@@ -15,6 +15,7 @@ app.secret_key = 'psychaid-secret-2024'
 
 from scales_data import SCALES
 from report_generator import load_config, save_config, generate_report, report_to_docx
+from providers import PROVIDERS, ProviderError, resolve_provider
 from pdf_forms import get_pdf_bytes
 
 @app.route('/')
@@ -28,23 +29,76 @@ def assessment():
 @app.route('/settings')
 def settings():
     cfg = load_config()
-    return render_template('settings.html', api_key=cfg.get('api_key', ''))
+    provider_options = {
+        name: {
+            'label': provider['label'],
+            'default_model': provider['default_model'],
+            'auth_env': provider['auth_env'],
+            'docs_url': provider['docs_url'],
+            'has_saved_key': bool(cfg.get('api_keys', {}).get(name))
+        }
+        for name, provider in PROVIDERS.items()
+    }
+    public_settings = {
+        'provider': cfg.get('provider', 'anthropic'),
+        'model': cfg.get('model', ''),
+        'auth_mode': cfg.get('auth_mode', 'api_key')
+    }
+    return render_template(
+        'settings.html',
+        provider_options=provider_options,
+        settings=public_settings
+    )
 
 @app.route('/api/save-settings', methods=['POST'])
 def save_settings():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
+    provider = data.get('provider', '')
+    auth_mode = data.get('auth_mode', '')
+    if provider not in PROVIDERS:
+        return jsonify({'error': 'Choose a valid AI provider.'}), 400
+    if auth_mode not in ('api_key', 'subscription'):
+        return jsonify({'error': 'Choose a valid authentication mode.'}), 400
+
     cfg = load_config()
-    cfg['api_key'] = data.get('api_key', '').strip()
+    cfg['provider'] = provider
+    cfg['model'] = data.get('model', '').strip() if isinstance(data.get('model'), str) else ''
+    cfg['auth_mode'] = auth_mode
+
+    new_keys = data.get('api_keys') if isinstance(data.get('api_keys'), dict) else {}
+    current_key = data.get('api_key')
+    if isinstance(current_key, str) and current_key.strip():
+        new_keys[provider] = current_key
+    for name, key in new_keys.items():
+        if name in PROVIDERS and isinstance(key, str) and key.strip():
+            cfg['api_keys'][name] = key.strip()
+
     save_config(cfg)
-    return jsonify({'ok': True})
+    return jsonify({
+        'ok': True,
+        'saved_keys': {
+            name: bool(cfg['api_keys'].get(name)) for name in PROVIDERS
+        }
+    })
+
+@app.route('/api/test-provider', methods=['POST'])
+def test_provider():
+    try:
+        provider, api_key, model = resolve_provider(load_config())
+        provider['generate'](
+            'This is a connection test. Follow the user instruction exactly.',
+            'Reply with only OK.',
+            api_key,
+            model
+        )
+        return jsonify({'ok': True, 'message': f'{provider["label"]} connection succeeded.'})
+    except ProviderError as error:
+        return jsonify({'error': str(error)}), 400
 
 @app.route('/api/generate-report', methods=['POST'])
 def api_generate_report():
     cfg = load_config()
-    api_key = cfg.get('api_key', '')
-    if not api_key:
-        return jsonify({'error': 'No API key configured. Go to Settings to add your Anthropic API key.'}), 400
-    
+
     files = []
     for f in request.files.getlist('files'):
         files.append((f.filename, f.read()))
@@ -53,7 +107,7 @@ def api_generate_report():
         return jsonify({'error': 'No files uploaded.'}), 400
     
     try:
-        report_text = generate_report(files, api_key)
+        report_text = generate_report(files, cfg)
         client_name = request.form.get('client_name', '')
         docx_bytes = report_to_docx(report_text, client_name)
         
@@ -64,8 +118,10 @@ def api_generate_report():
             as_attachment=True,
             download_name=filename
         )
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except ProviderError as error:
+        return jsonify({'error': str(error)}), 400
+    except Exception as error:
+        return jsonify({'error': str(error)}), 500
 
 @app.route('/api/download-form/<sk>/<rater>')
 def download_form(sk, rater):

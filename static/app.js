@@ -88,4 +88,116 @@ function showToast(msg, type = 'info') {
     clearTimeout(t._to); t._to = setTimeout(() => t.classList.remove('show'), 4000);
 }
 
-document.addEventListener('DOMContentLoaded', initDrop);
+let providerOptions = {};
+let savedKeys = {};
+let pendingKeys = {};
+let pendingModels = {};
+let previousProvider = '';
+
+function initSettings() {
+    const form = document.getElementById('settings-form');
+    if (!form) return;
+
+    providerOptions = JSON.parse(form.dataset.providers);
+    const settings = JSON.parse(form.dataset.settings);
+    savedKeys = Object.fromEntries(
+        Object.entries(providerOptions).map(([name, provider]) => [name, provider.has_saved_key])
+    );
+    previousProvider = settings.provider;
+
+    document.getElementById('provider').addEventListener('change', updateProviderFields);
+    document.querySelectorAll('input[name="auth-mode"]').forEach(input => {
+        input.addEventListener('change', updateAuthFields);
+    });
+    updateProviderFields();
+    updateAuthFields();
+}
+
+function updateProviderFields() {
+    const providerSelect = document.getElementById('provider');
+    const keyInput = document.getElementById('api-key');
+    if (!providerSelect || !keyInput) return;
+
+    if (previousProvider) pendingKeys[previousProvider] = keyInput.value;
+    const model = document.getElementById('model');
+    if (previousProvider) pendingModels[previousProvider] = model.value;
+    const providerName = providerSelect.value;
+    const provider = providerOptions[providerName];
+    previousProvider = providerName;
+    keyInput.value = pendingKeys[providerName] || '';
+    model.value = pendingModels[providerName] || '';
+    keyInput.placeholder = `Enter a new ${provider.label} key`;
+
+    const status = document.getElementById('key-status');
+    status.textContent = savedKeys[providerName] ? 'A key is saved' : 'No key saved';
+    status.classList.toggle('has-key', savedKeys[providerName]);
+
+    model.placeholder = provider.default_model;
+    document.getElementById('default-model').textContent = provider.default_model;
+    document.getElementById('subscription-help').textContent =
+        `Use the ${provider.auth_env} environment variable configured on this computer.`;
+}
+
+function updateAuthFields() {
+    const mode = document.querySelector('input[name="auth-mode"]:checked')?.value;
+    const keyGroup = document.getElementById('api-key-group');
+    if (keyGroup) keyGroup.hidden = mode !== 'api_key';
+}
+
+async function saveSettings() {
+    const provider = document.getElementById('provider').value;
+    const keyInput = document.getElementById('api-key');
+    pendingKeys[provider] = keyInput.value;
+    const apiKeys = Object.fromEntries(
+        Object.entries(pendingKeys)
+            .map(([name, key]) => [name, key.trim()])
+            .filter(([, key]) => key)
+    );
+    const payload = {
+        provider,
+        model: document.getElementById('model').value.trim(),
+        auth_mode: document.querySelector('input[name="auth-mode"]:checked').value,
+        api_keys: apiKeys
+    };
+
+    try {
+        const res = await fetch('/api/save-settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Could not save settings.');
+
+        savedKeys = data.saved_keys;
+        pendingKeys = {};
+        previousProvider = provider;
+        keyInput.value = '';
+        updateProviderFields();
+        showToast('Settings saved!', 'success');
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
+async function testProvider() {
+    const button = document.getElementById('test-provider-btn');
+    button.disabled = true;
+    button.classList.add('testing');
+    try {
+        const res = await fetch('/api/test-provider', {method: 'POST'});
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+        showToast(data.message, 'success');
+    } catch (error) {
+        showToast(error.message, 'error');
+    } finally {
+        button.disabled = false;
+        button.classList.remove('testing');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initDrop();
+    initSettings();
+});
