@@ -36,7 +36,7 @@ Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"
 Filename: "{app}\PsychAid.exe"; Description: "Launch PsychAid"; Flags: nowait postinstall skipifsilent
 
 [Code]
-function HasWebView2Version(const RootKey: Integer; const SubKey: String): Boolean;
+function HasWebView2Version(RootKey: Integer; SubKey: String): Boolean;
 var
   Version: String;
 begin
@@ -45,27 +45,12 @@ begin
 end;
 
 function NeedsWebView2: Boolean;
-const
-  WebView2ClientKey = 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
-  WebView2Wow6432ClientKey = 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+var
+  ClientKey, Wow6432Key: String;
 begin
-  if HasWebView2Version(HKLM, WebView2Wow6432ClientKey) then
-  begin
-    Result := False;
-    Exit;
-  end;
-
-  if HasWebView2Version(HKLM, WebView2ClientKey) then
-  begin
-    Result := False;
-    Exit;
-  end;
-
-  if HasWebView2Version(HKCU, WebView2ClientKey) then
-  begin
-    Result := False;
-    Exit;
-  end;
-
-  Result := True;
+  ClientKey := 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+  Wow6432Key := 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+  Result := not (HasWebView2Version(HKLM, Wow6432Key)
+    or HasWebView2Version(HKLM, ClientKey)
+    or HasWebView2Version(HKCU, ClientKey));
 end;
