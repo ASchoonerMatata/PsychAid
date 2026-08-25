@@ -31,11 +31,21 @@ function renderFileList() {
         </div>`).join('');
 }
 
-// Navigate to PDF — displays inline in webview, Back button returns to home
+// The webview has no download handler, so an attachment navigation is silently
+// dropped. Use the native save dialog main.py exposes; fall back to a plain
+// navigation only in browser-fallback mode, where the browser does handle it.
 function downloadForm(sk, rater) {
     const clientName = (document.getElementById('report-client-name') || {}).value || '';
-    const url = `/api/download-form/${sk}/${rater}?name=${encodeURIComponent(clientName)}`;
-    window.location.href = url;
+    if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.download_form(sk, rater, clientName || 'Client')
+            .then(r => {
+                if (r.success) showToast('Form saved.', 'success');
+                else if (r.error) showToast(r.error, 'error');
+            })
+            .catch(e => showToast(`Could not save form: ${e}`, 'error'));
+        return;
+    }
+    window.location.href = `/api/download-form/${sk}/${rater}?name=${encodeURIComponent(clientName)}`;
 }
 
 async function generateReport() {
