@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Assessment — PsychAid{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <!-- AI Report Generation -->
+  <div class="section-card">
+    <div class="section-title">
+      <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      AI Report Generation
+    </div>
+    <div class="field-row">
+      <div class="field-group">
+        <label>Client Name</label>
+        <input type="text" id="report-client-name" placeholder="Full name (used for filenames)">
+      </div>
+    </div>
+    <div id="drop-zone" class="drop-zone">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5">
+        <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+      </svg>
+      <p><strong>Click or drag files here</strong></p>
+      <p>Upload intake forms, score reports, referral letters (.pdf, .docx, .txt)</p>
+      <input type="file" id="file-input" multiple accept=".pdf,.docx,.doc,.txt" style="display:none">
+    </div>
+    <div id="file-list" class="file-list"></div>
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" id="generate-btn" onclick="generateReport()">
+        <div class="spinner"></div>
+        <span class="btn-label">Generate Report</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Downloadable Forms -->
+  <div class="section-card">
+    <div class="section-title">
+      <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      Downloadable Rating Forms
+      <span style="font-size:.78rem;font-weight:400;color:var(--muted);margin-left:6px">Click a form to download — client name above is used in filename</span>
+    </div>
+
+    <div class="forms-columns">
+
+      <div class="forms-group">
+        <div class="forms-group-title">ADHD</div>
+        <a class="form-link" onclick="downloadForm('snap4','parent')">SNAP-IV — Parent</a>
+        <a class="form-link" onclick="downloadForm('snap4','teacher')">SNAP-IV — Teacher</a>
+        <a class="form-link" onclick="downloadForm('vanderbilt','parent')">Vanderbilt — Parent</a>
+        <a class="form-link" onclick="downloadForm('vanderbilt','teacher')">Vanderbilt — Teacher</a>
+      </div>
+
+      <div class="forms-group">
+        <div class="forms-group-title">Behaviour</div>
+        <a class="form-link" onclick="downloadForm('sdq','parent')">SDQ — Parent</a>
+        <a class="form-link" onclick="downloadForm('sdq','teacher')">SDQ — Teacher</a>
+        <a class="form-link" onclick="downloadForm('sdq','self')">SDQ — Youth Self</a>
+      </div>
+
+      <div class="forms-group">
+        <div class="forms-group-title">ASD &amp; Social</div>
+        <a class="form-link" onclick="downloadForm('aq10','adult')">AQ-10 — Adult</a>
+        <a class="form-link" onclick="downloadForm('aq10','child')">AQ-10 — Child</a>
+        <a class="form-link" onclick="downloadForm('catq','self')">CATq — Self</a>
+      </div>
+
+      <div class="forms-group">
+        <div class="forms-group-title">Anxiety</div>
+        <a class="form-link" onclick="downloadForm('scared','child')">SCARED — Child</a>
+        <a class="form-link" onclick="downloadForm('scared','parent')">SCARED — Parent</a>
+        <a class="form-link" onclick="downloadForm('gad7','self')">GAD-7</a>
+      </div>
+
+      <div class="forms-group">
+        <div class="forms-group-title">Mood &amp; Depression</div>
+        <a class="form-link" onclick="downloadForm('phq9','self')">PHQ-9 — Adult</a>
+        <a class="form-link" onclick="downloadForm('phqa','self')">PHQ-A — Adolescent</a>
+        <a class="form-link" onclick="downloadForm('dass21','self')">DASS-21</a>
+      </div>
+
+      <div class="forms-group">
+        <div class="forms-group-title">Sleep</div>
+        <a class="form-link" onclick="downloadForm('epworth','self')">Epworth Sleepiness Scale</a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

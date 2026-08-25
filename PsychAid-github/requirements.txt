@@ -1,0 +1,9 @@
+flask
+reportlab
+pypdf
+anthropic
+python-docx
+mammoth
+pywebview
+pyobjc
+pyobjc-framework-WebKit

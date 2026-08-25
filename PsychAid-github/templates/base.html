@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}PsychAid{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body>
+<nav class="topnav">
+  <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgNTIiPgogIDwhLS0gQ2lyY2xlIG1hcmsgLS0+CiAgPGNpcmNsZSBjeD0iMjYiIGN5PSIyNiIgcj0iMjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFhMmQ0ZiIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPCEtLSBQc2kgc3ltYm9sIC0tPgogIDx0ZXh0IHg9IjI2IiB5PSIzMyIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9Ikdlb3JnaWEsc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZpbGw9IiMxYTJkNGYiIGZvbnQtd2VpZ2h0PSI0MDAiPs+IPC90ZXh0PgogIDwhLS0gV29yZG1hcmsgLS0+CiAgPHRleHQgeD0iNTYiIHk9IjI0IiBmb250LWZhbWlseT0iJ1NlZ29lIFVJJyxzeXN0ZW0tdWksc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzFhMmQ0ZiIgbGV0dGVyLXNwYWNpbmc9Ii0wLjMiPlBzeWNoPC90ZXh0PgogIDx0ZXh0IHg9IjEwNyIgeT0iMjQiIGZvbnQtZmFtaWx5PSInU2Vnb2UgVUknLHN5c3RlbS11aSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjNTJiNzg4IiBsZXR0ZXItc3BhY2luZz0iLTAuMyI+QWlkPC90ZXh0PgogIDwhLS0gVGFnbGluZSAtLT4KICA8dGV4dCB4PSI1NyIgeT0iMzgiIGZvbnQtZmFtaWx5PSInU2Vnb2UgVUknLHN5c3RlbS11aSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjgiIGZpbGw9IiM5Y2EzYWYiIGxldHRlci1zcGFjaW5nPSIxLjgiPlBTWUNIT0xPR1kgVE9PTFM8L3RleHQ+Cjwvc3ZnPg==" alt="PsychAid" class="topnav-logo">
+  <button class="btn-back" id="back-btn" onclick="history.back()" style="display:none">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Back
+  </button>
+  <div class="topnav-links">
+    <a href="/assessment" class="{% if request.path == '/assessment' or request.path == '/' %}active{% endif %}">Home</a>
+    <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}">Settings</a>
+  </div>
+</nav>
+{% block content %}{% endblock %}
+<div id="toast" class="toast"></div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script>
+// Show back button whenever there is history to go back to
+(function(){
+  if(window.history.length > 1){
+    var b = document.getElementById('back-btn');
+    if(b) b.style.display = 'inline-flex';
+  }
+})();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

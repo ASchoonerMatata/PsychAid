@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Settings — PsychAid{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="section-card">
+    <div class="section-title">
+      <svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Settings
+    </div>
+
+    <div class="settings-form">
+      <div class="field-group">
+        <label>Anthropic API Key</label>
+        <input type="password" id="api-key" placeholder="sk-ant-..." value="{{ api_key }}">
+        <p style="font-size:.8rem;color:var(--muted);margin-top:4px">Required for AI report generation. Get yours at <strong>console.anthropic.com</strong></p>
+      </div>
+
+      <button class="btn btn-save" onclick="saveSettings()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Settings
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveSettings() {
+    const key = document.getElementById('api-key').value.trim();
+    const res = await fetch('/api/save-settings', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({api_key: key})
+    });
+    const j = await res.json();
+    showToast(j.ok ? 'Settings saved!' : 'Error saving settings', j.ok ? 'success' : 'error');
+}
+</script>
+{% endblock %}
