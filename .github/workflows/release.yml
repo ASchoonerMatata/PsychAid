@@ -77,6 +77,17 @@ jobs:
           hdiutil create -volname PsychAid -srcfolder dmg-stage \
             -ov -format UDZO "${{ matrix.asset }}"
 
+      # Fail the release if any credential-shaped string reaches the shipped payload.
+      - name: Scan build payload for secrets
+        run: |
+          for pat in 'AIza[A-Za-z0-9_-]{30,}' 'sk-ant-[A-Za-z0-9_-]{20,}' \
+                     'AKIA[0-9A-Z]{16}' 'ghp_[A-Za-z0-9]{30,}' 'BEGIN [A-Z ]*PRIVATE KEY'; do
+            if grep -raoE "$pat" dist/ >/dev/null 2>&1; then
+              echo "Credential-shaped string matching /$pat/ found in dist/"; exit 1
+            fi
+          done
+          echo "No credential-shaped strings in dist/"
+
       - name: Upload build artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
