@@ -8,10 +8,11 @@ Download the file for your machine from the [latest release](../../releases/late
 
 | Machine | File | What to do |
 |---|---|---|
-| Windows | `PsychAid-windows-x64.zip` | Download the .zip, extract it, then run `PsychAid.exe`. |
+| Windows | `PsychAid-windows-x64-setup.exe` | Run the installer. PsychAid then appears in the Start menu. No admin rights needed. |
 | Mac (Apple Silicon only, M1–M4) | `PsychAid-macos-arm64.dmg` | Open the .dmg and drag PsychAid to Applications, which puts it in Launchpad and Spotlight. |
 
-Windows 10 and Windows 11 are both supported, and Python is **not** required.
+Windows 10 and Windows 11 are both supported, and Python is **not** required. The Windows
+installer adds the Microsoft WebView2 runtime automatically if the machine does not have it.
 
 ### First launch
 

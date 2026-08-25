@@ -25,7 +25,7 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            asset: PsychAid-windows-x64.zip
+            asset: PsychAid-windows-x64-setup.exe
           - os: macos-14
             asset: PsychAid-macos-arm64.dmg
     runs-on: ${{ matrix.os }}
@@ -50,7 +50,9 @@ jobs:
             --collect-all webview \
             main.py
           ./dist/PsychAid/PsychAid.exe --selftest
-          powershell -NoProfile -Command "Compress-Archive -Path 'dist/PsychAid' -DestinationPath '${{ matrix.asset }}' -Force"
+          curl -L -o installer/MicrosoftEdgeWebview2Setup.exe https://go.microsoft.com/fwlink/p/?LinkId=2124703
+          choco install innosetup -y --no-progress
+          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" /DMyAppVersion=${GITHUB_REF_NAME#v} /O. installer/psychaid.iss
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
