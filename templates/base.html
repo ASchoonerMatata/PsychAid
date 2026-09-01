@@ -8,28 +8,75 @@
 {% block head %}{% endblock %}
 </head>
 <body>
-<nav class="topnav">
-  <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgNTIiPgogIDwhLS0gQ2lyY2xlIG1hcmsgLS0+CiAgPGNpcmNsZSBjeD0iMjYiIGN5PSIyNiIgcj0iMjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFhMmQ0ZiIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPCEtLSBQc2kgc3ltYm9sIC0tPgogIDx0ZXh0IHg9IjI2IiB5PSIzMyIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9Ikdlb3JnaWEsc2VyaWYiIGZvbnQtc2l6ZT0iMjIiIGZpbGw9IiMxYTJkNGYiIGZvbnQtd2VpZ2h0PSI0MDAiPs+IPC90ZXh0PgogIDwhLS0gV29yZG1hcmsgLS0+CiAgPHRleHQgeD0iNTYiIHk9IjI0IiBmb250LWZhbWlseT0iJ1NlZ29lIFVJJyxzeXN0ZW0tdWksc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzFhMmQ0ZiIgbGV0dGVyLXNwYWNpbmc9Ii0wLjMiPlBzeWNoPC90ZXh0PgogIDx0ZXh0IHg9IjEwNyIgeT0iMjQiIGZvbnQtZmFtaWx5PSInU2Vnb2UgVUknLHN5c3RlbS11aSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjNTJiNzg4IiBsZXR0ZXItc3BhY2luZz0iLTAuMyI+QWlkPC90ZXh0PgogIDwhLS0gVGFnbGluZSAtLT4KICA8dGV4dCB4PSI1NyIgeT0iMzgiIGZvbnQtZmFtaWx5PSInU2Vnb2UgVUknLHN5c3RlbS11aSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjgiIGZpbGw9IiM5Y2EzYWYiIGxldHRlci1zcGFjaW5nPSIxLjgiPlBTWUNIT0xPR1kgVE9PTFM8L3RleHQ+Cjwvc3ZnPg==" alt="PsychAid" class="topnav-logo">
-  <button class="btn-back" id="back-btn" onclick="history.back()" style="display:none">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-    Back
-  </button>
-  <div class="topnav-links">
-    <a href="/assessment" class="{% if request.path == '/assessment' or request.path == '/' %}active{% endif %}">Home</a>
-    <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}">Settings</a>
+
+<nav class="nav">
+  <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgNTIiPgogIDxjaXJjbGUgY3g9IjI2IiBjeT0iMjYiIHI9IjIwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjcpIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8dGV4dCB4PSIyNiIgeT0iMzMiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJHZW9yZ2lhLHNlcmlmIiBmb250LXNpemU9IjIyIiBmaWxsPSIjZmZmIiBmb250LXdlaWdodD0iNDAwIj7PiDwvdGV4dD4KICA8dGV4dCB4PSI1NiIgeT0iMjQiIGZvbnQtZmFtaWx5PSInU2Vnb2UgVUknLHN5c3RlbS11aSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIiBsZXR0ZXItc3BhY2luZz0iLTAuMyI+UHN5Y2g8L3RleHQ+CiAgPHRleHQgeD0iMTA3IiB5PSIyNCIgZm9udC1mYW1pbHk9IidTZWdvZSBVSScsaW5oZXJpdCIgZm9udC1zaXplPSIxNyIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzUyYjc4OCIgbGV0dGVyLXNwYWNpbmc9Ii0wLjMiPkFpZDwvdGV4dD4KICA8dGV4dCB4PSI1NyIgeT0iMzgiIGZvbnQtZmFtaWx5PSInU2Vnb2UgVUknLGluaGVyaXQiIGZvbnQtc2l6ZT0iOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwuNCkiIGxldHRlci1zcGFjaW5nPSIxLjgiPlBTWUNIT0xPR1kgVE9PTFM8L3RleHQ+Cjwvc3ZnPg==" alt="PsychAid" class="nav-logo">
+
+  <!-- Screeners dropdown -->
+  <div class="screeners-dropdown">
+    <button class="nav-btn" onclick="toggleScreeners()">
+      <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+      Screeners
+      <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+    <div class="screeners-menu" id="screeners-menu">
+      <div class="sc-group-title">ADHD</div>
+      <a class="sc-link" onclick="downloadForm('snap4','parent')">SNAP-IV — Parent</a>
+      <a class="sc-link" onclick="downloadForm('snap4','teacher')">SNAP-IV — Teacher</a>
+      <a class="sc-link" onclick="downloadForm('vanderbilt','parent')">Vanderbilt — Parent</a>
+      <a class="sc-link" onclick="downloadForm('vanderbilt','teacher')">Vanderbilt — Teacher</a>
+      <div class="sc-divider"></div>
+      <div class="sc-group-title">Behaviour</div>
+      <a class="sc-link" onclick="downloadForm('sdq','parent')">SDQ — Parent</a>
+      <a class="sc-link" onclick="downloadForm('sdq','teacher')">SDQ — Teacher</a>
+      <a class="sc-link" onclick="downloadForm('sdq','self')">SDQ — Youth Self</a>
+      <div class="sc-divider"></div>
+      <div class="sc-group-title">ASD &amp; Social</div>
+      <a class="sc-link" onclick="downloadForm('aq10','adult')">AQ-10 — Adult</a>
+      <a class="sc-link" onclick="downloadForm('aq10','child')">AQ-10 — Child</a>
+      <a class="sc-link" onclick="downloadForm('catq','self')">CATq — Self</a>
+      <div class="sc-divider"></div>
+      <div class="sc-group-title">Anxiety</div>
+      <a class="sc-link" onclick="downloadForm('scared','child')">SCARED — Child</a>
+      <a class="sc-link" onclick="downloadForm('scared','parent')">SCARED — Parent</a>
+      <a class="sc-link" onclick="downloadForm('gad7','self')">GAD-7</a>
+      <div class="sc-divider"></div>
+      <div class="sc-group-title">Mood &amp; Depression</div>
+      <a class="sc-link" onclick="downloadForm('phq9','self')">PHQ-9 — Adult</a>
+      <a class="sc-link" onclick="downloadForm('phqa','self')">PHQ-A — Adolescent</a>
+      <a class="sc-link" onclick="downloadForm('dass21','self')">DASS-21</a>
+      <div class="sc-divider"></div>
+      <div class="sc-group-title">Sleep</div>
+      <a class="sc-link" onclick="downloadForm('epworth','self')">Epworth Sleepiness Scale</a>
+    </div>
   </div>
+
+  <!-- Settings -->
+  <a href="/settings" class="nav-icon-btn" title="Settings">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+  </a>
 </nav>
-{% block content %}{% endblock %}
+
+<div class="app-body">
+  {% block content %}{% endblock %}
+</div>
+
 <div id="toast" class="toast"></div>
+
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 <script>
-// Show back button whenever there is history to go back to
-(function(){
-  if(window.history.length > 1){
-    var b = document.getElementById('back-btn');
-    if(b) b.style.display = 'inline-flex';
+function toggleScreeners() {
+  document.getElementById('screeners-menu').classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.screeners-dropdown')) {
+    var m = document.getElementById('screeners-menu');
+    if (m) m.classList.remove('open');
   }
-})();
+});
 </script>
 {% block scripts %}{% endblock %}
 </body>

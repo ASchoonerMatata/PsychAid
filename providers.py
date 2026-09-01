@@ -1,3 +1,4 @@
+from __future__ import annotations  # enables str | None on Python 3.9
 import json
 import os
 import urllib.error
