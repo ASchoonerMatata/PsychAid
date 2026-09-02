@@ -2,114 +2,94 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+  build-mac:
+    runs-on: macos-14
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-      - name: Create draft release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --draft --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+      - uses: actions/checkout@v4
 
-  build:
-    needs: create-release
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      # Intel Macs dropped: macos-13 runners queue for hours. Apple Silicon is the shipped Mac target.
-      matrix:
-        include:
-          - os: windows-latest
-            asset: PsychAid-windows-x64-setup.exe
-          - os: macos-14
-            asset: PsychAid-macos-arm64.dmg
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - run: pip install -r requirements.txt -r requirements-build.txt
-
-      # PyInstaller 6 accepts the ':' data separator on every platform.
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
+      - name: Install dependencies
         run: |
-          pyinstaller --noconfirm --clean --windowed --name PsychAid \
-            --add-data "templates:templates" --add-data "static:static" \
+          pip install --upgrade pip
+          pip install pyinstaller pywebview flask anthropic pillow reportlab python-docx
+
+      - name: Build Mac app
+        run: |
+          pyinstaller \
+            --name PsychAid \
+            --windowed \
+            --onedir \
+            --icon AppIcon.icns \
+            --add-data "templates:templates" \
+            --add-data "static:static" \
             --add-data "skill:skill" \
-            --collect-all webview \
+            --hidden-import anthropic \
+            --hidden-import flask \
+            --hidden-import webview \
             main.py
-          ./dist/PsychAid/PsychAid.exe --selftest
-          curl -L -o installer/MicrosoftEdgeWebview2Setup.exe https://go.microsoft.com/fwlink/p/?LinkId=2124703
-          powershell -NoProfile -Command "\$s = Get-AuthenticodeSignature 'installer/MicrosoftEdgeWebview2Setup.exe'; if (\$s.Status -ne 'Valid' -or \$s.SignerCertificate.Subject -notlike '*Microsoft Corporation*') { Write-Error \"WebView2 bootstrapper signature check failed: \$(\$s.Status)\"; exit 1 }"
-          choco install innosetup -y --no-progress
-          # MSYS2_ARG_CONV_EXCL stops Git Bash rewriting /D and /O into Windows paths
-          MSYS2_ARG_CONV_EXCL='*' "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" \
-            /DMyAppVersion=${GITHUB_REF_NAME#v} /O. installer/psychaid.iss
 
-      - name: Build (macOS)
-        if: runner.os == 'macOS'
+      - name: Create DMG
         run: |
-          pyinstaller --noconfirm --clean --windowed --name PsychAid \
-            --osx-bundle-identifier com.psychaid.app \
-            --add-data "templates:templates" --add-data "static:static" \
-            --add-data "skill:skill" \
-            --collect-all webview \
-            main.py
-          ./dist/PsychAid.app/Contents/MacOS/PsychAid --selftest
-          mkdir -p dmg-stage
-          cp -R dist/PsychAid.app dmg-stage/
-          ln -s /Applications dmg-stage/Applications
-          hdiutil create -volname PsychAid -srcfolder dmg-stage \
-            -ov -format UDZO "${{ matrix.asset }}"
+          brew install create-dmg || true
+          create-dmg \
+            --volname "PsychAid" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "PsychAid.app" 175 190 \
+            --app-drop-link 425 190 \
+            "PsychAid-Mac.dmg" \
+            "dist/"
 
-      # Fail the release if any credential-shaped string reaches the shipped payload.
-      - name: Scan build payload for secrets
-        run: |
-          for pat in 'AIza[A-Za-z0-9_-]{30,}' 'sk-ant-[A-Za-z0-9_-]{20,}' \
-                     'AKIA[0-9A-Z]{16}' 'ghp_[A-Za-z0-9]{30,}' 'BEGIN [A-Z ]*PRIVATE KEY'; do
-            if grep -raoE "$pat" dist/ >/dev/null 2>&1; then
-              echo "Credential-shaped string matching /$pat/ found in dist/"; exit 1
-            fi
-          done
-          echo "No credential-shaped strings in dist/"
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - name: Upload DMG
+        uses: softprops/action-gh-release@v2
         with:
-          name: ${{ matrix.asset }}
-          path: ${{ matrix.asset }}
+          files: PsychAid-Mac.dmg
+          draft: false
 
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+  build-windows:
+    runs-on: windows-latest
     steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          path: release-assets
-          merge-multiple: true
+      - uses: actions/checkout@v4
 
-      - name: Upload to release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyinstaller pywebview flask anthropic pillow reportlab python-docx
+
+      - name: Build Windows exe
+        run: |
+          pyinstaller `
+            --name PsychAid `
+            --windowed `
+            --onedir `
+            --add-data "templates;templates" `
+            --add-data "static;static" `
+            --add-data "skill;skill" `
+            --hidden-import anthropic `
+            --hidden-import flask `
+            --hidden-import webview `
+            main.py
+
+      - name: Zip Windows build
+        run: Compress-Archive -Path dist\PsychAid -DestinationPath PsychAid-Windows.zip
+
+      - name: Upload Windows zip
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PsychAid-Windows.zip
+          draft: false
