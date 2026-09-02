@@ -319,20 +319,15 @@ def report_export():
             return jsonify({'error': 'Session not found. Please start a new report.'}), 404
 
     conv = _conversations[session_id]
-    export_history = conv['history'] + [{
-        "role": "user",
-        "content": (
-            "Please now compile and output the complete report in full — every section "
-            "as drafted and approved, assembled in order. Output the report text only, "
-            "no additional commentary before or after it."
-        )
-    }]
-    try:
-        report_text = _chat_turn(export_history, cfg, max_tokens=8000)
-    except ProviderError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+
+    # Collect all assistant messages and join them — no new AI call needed
+    assistant_parts = [
+        m['content'] for m in conv.get('history', [])
+        if m.get('role') == 'assistant' and m.get('content', '').strip()
+    ]
+    report_text = '\n\n---\n\n'.join(assistant_parts)
+    if not report_text.strip():
+        return jsonify({'error': 'No report content found. Please generate the report first.'}), 400
 
     client_name = conv.get('client_name', '')
     docx_bytes = report_to_docx(report_text, client_name)
