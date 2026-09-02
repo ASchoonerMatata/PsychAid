@@ -141,37 +141,218 @@ def generate_report(files, cfg):
     )
 
 def report_to_docx(text, client_name=''):
+    import re
     from docx import Document
-    from docx.shared import Pt, RGBColor
+    from docx.shared import Pt, RGBColor, Inches
     from docx.enum.text import WD_ALIGN_PARAGRAPH
-    
-    doc = Document()
-    style = doc.styles['Normal']
-    style.font.name = 'Calibri'
-    style.font.size = Pt(11)
-    
-    # Title
-    title = doc.add_heading('PSYCHOLOGICAL ASSESSMENT REPORT', 0)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    if client_name:
-        sub = doc.add_paragraph(f'Prepared for: {client_name}')
-        sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    doc.add_paragraph('')
-    
-    # Parse and add content
-    for line in text.split('\n'):
+    from docx.oxml import OxmlElement
+    from lxml import etree
+
+    DARK = RGBColor(0x26, 0x26, 0x26)
+    FONT = 'Cambria'
+    BODY_PT = Pt(11)
+    HEAD_PT = Pt(11)
+
+    # ── Load the branded template ────────────────────────────────────────────
+    if getattr(sys, 'frozen', False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+    template_path = os.path.join(base, 'report_template.docx')
+
+    try:
+        doc = Document(template_path)
+    except Exception:
+        doc = Document()
+
+    body = doc.element.body
+    children = list(body)
+
+    # Identify the footer text paragraphs (last 2 paragraphs with text before sectPr)
+    # and the header image paragraph (index 1). Clear everything in between.
+    HEADER_IDX = 1  # paragraph with floating header image
+    W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+
+    # Find footer paras (ones with text near the end)
+    footer_indices = []
+    for idx, child in enumerate(children):
+        t = ''.join(n.text or '' for n in child.iter('{%s}t' % W_NS))
+        if t.strip() and idx > len(children) // 2:
+            footer_indices.append(idx)
+
+    # Remove all paragraphs between header image and footer
+    keep = set([0, HEADER_IDX] + footer_indices + [len(children) - 1])
+    to_remove = [c for i, c in enumerate(children)
+                 if i not in keep and c.tag.split('}')[-1] in ('p', 'tbl')]
+    for el in to_remove:
+        body.remove(el)
+
+    # Find insertion point: after header image paragraph, before footer text
+    children = list(body)
+    insert_before = None
+    for idx, child in enumerate(children):
+        t = ''.join(n.text or '' for n in child.iter('{%s}t' % W_NS))
+        if t.strip():  # first paragraph with text = start of footer
+            insert_before = child
+            break
+    if insert_before is None:
+        insert_before = body.find('{%s}sectPr' % W_NS)
+
+    def _insert(el):
+        body.insert(list(body).index(insert_before), el)
+
+    # ── Helpers ──────────────────────────────────────────────────────────────
+    def _new_para(style_name=None):
+        from docx.oxml.ns import qn
+        p = OxmlElement('w:p')
+        if style_name:
+            pPr = OxmlElement('w:pPr')
+            pStyle = OxmlElement('w:pStyle')
+            pStyle.set(qn('w:val'), style_name)
+            pPr.append(pStyle)
+            p.append(pPr)
+        return p
+
+    def _new_run(p_el, txt, bold=False, size_pt=None):
+        from docx.oxml.ns import qn
+        r = OxmlElement('w:r')
+        rPr = OxmlElement('w:rPr')
+        rFonts = OxmlElement('w:rFonts')
+        rFonts.set(qn('w:ascii'), FONT)
+        rFonts.set(qn('w:hAnsi'), FONT)
+        rPr.append(rFonts)
+        if bold:
+            b = OxmlElement('w:b'); rPr.append(b)
+        sz = OxmlElement('w:sz')
+        sz.set(qn('w:val'), str(int((size_pt or BODY_PT.pt) * 2)))
+        rPr.append(sz)
+        color = OxmlElement('w:color')
+        color.set(qn('w:val'), '262626')
+        rPr.append(color)
+        r.append(rPr)
+        t = OxmlElement('w:t')
+        t.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+        t.text = txt
+        r.append(t)
+        p_el.append(r)
+        return r
+
+    def _add_bold_runs_xml(p_el, raw):
+        parts = re.split(r'(\*\*[^*]+\*\*)', raw)
+        for part in parts:
+            if part.startswith('**') and part.endswith('**'):
+                _new_run(p_el, part[2:-2], bold=True)
+            elif part:
+                _new_run(p_el, part, bold=False)
+
+    def _spacing(p_el, before=0, after=4):
+        from docx.oxml.ns import qn
+        pPr = p_el.find('{%s}pPr' % W_NS)
+        if pPr is None:
+            pPr = OxmlElement('w:pPr')
+            p_el.insert(0, pPr)
+        sp = OxmlElement('w:spacing')
+        sp.set(qn('w:before'), str(int(before * 20)))
+        sp.set(qn('w:after'), str(int(after * 20)))
+        pPr.append(sp)
+
+    def add_heading(text_content):
+        clean = re.sub(r'^#+\s*', '', text_content).strip()
+        p = _new_para()
+        _spacing(p, before=10, after=2)
+        _new_run(p, clean, bold=True, size_pt=HEAD_PT.pt)
+        _insert(p)
+
+    def add_body(text_content):
+        p = _new_para()
+        _spacing(p, before=0, after=4)
+        _add_bold_runs_xml(p, text_content)
+        _insert(p)
+
+    def add_bullet(text_content):
+        p = _new_para(style_name='ListBullet')
+        _spacing(p, before=0, after=2)
+        _add_bold_runs_xml(p, text_content)
+        _insert(p)
+
+    def add_table(rows):
+        if not rows:
+            return
+        from docx.oxml.ns import qn
+        cols = max(len(r) for r in rows)
+        tbl = OxmlElement('w:tbl')
+        tblPr = OxmlElement('w:tblPr')
+        tblBorders = OxmlElement('w:tblBorders')
+        for side in ('top', 'left', 'bottom', 'right', 'insideH', 'insideV'):
+            b = OxmlElement(f'w:{side}')
+            b.set(qn('w:val'), 'single')
+            b.set(qn('w:sz'), '4')
+            b.set(qn('w:color'), '262626')
+            tblBorders.append(b)
+        tblPr.append(tblBorders)
+        tbl.append(tblPr)
+        for ri, row_data in enumerate(rows):
+            tr = OxmlElement('w:tr')
+            for ci in range(cols):
+                tc = OxmlElement('w:tc')
+                p = OxmlElement('w:p')
+                cell_text = row_data[ci].strip() if ci < len(row_data) else ''
+                _new_run(p, cell_text, bold=(ri == 0))
+                tc.append(p)
+                tr.append(tc)
+            tbl.append(tr)
+        _insert(tbl)
+        spacer = _new_para()
+        _spacing(spacer, before=0, after=4)
+        _insert(spacer)
+
+    # ── Parse and render ─────────────────────────────────────────────────────
+    # Add a spacer after header image
+    spacer = _new_para()
+    _spacing(spacer, before=0, after=8)
+    _insert(spacer)
+
+    lines = text.split('\n')
+    i = 0
+    while i < len(lines):
+        line = lines[i]
         stripped = line.strip()
+
         if not stripped:
-            doc.add_paragraph('')
+            p = _new_para(); _spacing(p, 0, 2); _insert(p)
+            i += 1; continue
+
+        if re.match(r'^-{3,}$', stripped) or re.match(r'^\*{3,}$', stripped):
+            i += 1; continue
+
+        if stripped.startswith('|') and stripped.endswith('|'):
+            table_rows = []
+            while i < len(lines) and lines[i].strip().startswith('|'):
+                row = lines[i].strip()
+                if re.match(r'^\|[\s|:-]+\|$', row):
+                    i += 1; continue
+                cells = [c.strip() for c in row.strip('|').split('|')]
+                table_rows.append(cells)
+                i += 1
+            add_table(table_rows)
             continue
-        # Detect headings (numbered sections or ALL CAPS)
-        if (stripped[0].isdigit() and '. ' in stripped[:4]) or stripped.isupper():
-            doc.add_heading(stripped, level=1)
-        else:
-            doc.add_paragraph(stripped)
-    
+
+        if re.match(r'^#{1,3}\s', stripped):
+            add_heading(stripped); i += 1; continue
+
+        if (stripped.isupper() and len(stripped) > 3
+                and not stripped.startswith('-')
+                and not re.match(r'^\d+[\.\)]\s', stripped)):
+            add_heading(stripped); i += 1; continue
+
+        if re.match(r'^[-*•]\s+', stripped):
+            add_bullet(re.sub(r'^[-*•]\s+', '', stripped)); i += 1; continue
+
+        if re.match(r'^\d+[\.\)]\s+', stripped):
+            add_bullet(re.sub(r'^\d+[\.\)]\s+', '', stripped)); i += 1; continue
+
+        add_body(stripped); i += 1
+
     buf = io.BytesIO()
     doc.save(buf)
     buf.seek(0)

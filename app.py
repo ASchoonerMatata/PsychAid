@@ -320,12 +320,34 @@ def report_export():
 
     conv = _conversations[session_id]
 
-    # Collect all assistant messages and join them — no new AI call needed
+    # Collect assistant messages that contain actual report content
+    # Skip short conversational messages and meta-commentary
+    _SKIP_STARTS = (
+        "i'll analyze", "i'll now", "i'll work", "based on my review",
+        "the psychological assessment report has", "would you like",
+        "please review", "here is a summary", "document summary",
+        "key observations", "items requiring", "## report complete",
+        "all sections have", "the report has been",
+    )
+    def _is_report_content(text):
+        t = text.strip()
+        if len(t) < 150:
+            return False
+        tl = t.lower()
+        return not any(tl.startswith(s) or tl.startswith('**' + s) for s in _SKIP_STARTS)
+
     assistant_parts = [
         m['content'] for m in conv.get('history', [])
-        if m.get('role') == 'assistant' and m.get('content', '').strip()
+        if m.get('role') == 'assistant' and _is_report_content(m.get('content', ''))
     ]
-    report_text = '\n\n---\n\n'.join(assistant_parts)
+    report_text = '\n\n'.join(assistant_parts)
+
+    # Trim everything after REPORT COMPLETE marker if present
+    for marker in ['## REPORT COMPLETE', '## Report Complete', 'REPORT COMPLETE']:
+        if marker in report_text:
+            report_text = report_text[:report_text.index(marker)].strip()
+            break
+
     if not report_text.strip():
         return jsonify({'error': 'No report content found. Please generate the report first.'}), 400
 
