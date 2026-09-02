@@ -260,7 +260,7 @@ def report_start():
     session_id = str(uuid.uuid4())
     history = [{"role": "user", "content": initial_msg}]
     try:
-        ai_msg = _chat_turn(history, cfg, max_tokens=2000)
+        ai_msg = _chat_turn(history, cfg, max_tokens=8000)
     except ProviderError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
@@ -295,7 +295,7 @@ def report_message():
     conv = _conversations[session_id]
     conv['history'].append({"role": "user", "content": user_msg})
     try:
-        ai_msg = _chat_turn(conv['history'], cfg, max_tokens=2000)
+        ai_msg = _chat_turn(conv['history'], cfg, max_tokens=8000)
     except ProviderError as e:
         conv['history'].pop()
         return jsonify({'error': str(e)}), 400
