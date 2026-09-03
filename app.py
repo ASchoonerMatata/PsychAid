@@ -254,7 +254,10 @@ def report_start():
     label = f"for {client_name}" if client_name else "for this client"
     initial_msg = (
         f"Documents uploaded {label}:\n\n{doc_combined}\n\n"
-        "Please begin the report drafting workflow."
+        "Generate the complete psychological assessment report now. "
+        "Start with PSYCHOLOGICAL ASSESSMENT REPORT and output every section in order. "
+        "If you reach your output limit before finishing, stop at a clean section boundary "
+        "and I will send 'continue' to get the rest."
     )
 
     session_id = str(uuid.uuid4())
@@ -320,33 +323,45 @@ def report_export():
 
     conv = _conversations[session_id]
 
-    # Collect assistant messages that contain actual report content
-    # Skip short conversational messages and meta-commentary
-    _SKIP_STARTS = (
-        "i'll analyze", "i'll now", "i'll work", "based on my review",
-        "the psychological assessment report has", "would you like",
-        "please review", "here is a summary", "document summary",
-        "key observations", "items requiring", "## report complete",
-        "all sections have", "the report has been",
-    )
-    def _is_report_content(text):
-        t = text.strip()
-        if len(t) < 150:
-            return False
-        tl = t.lower()
-        return not any(tl.startswith(s) or tl.startswith('**' + s) for s in _SKIP_STARTS)
-
-    assistant_parts = [
+    # Collect ALL assistant messages and join them
+    all_assistant = '\n\n'.join(
         m['content'] for m in conv.get('history', [])
-        if m.get('role') == 'assistant' and _is_report_content(m.get('content', ''))
-    ]
-    report_text = '\n\n'.join(assistant_parts)
+        if m.get('role') == 'assistant' and m.get('content', '').strip()
+    )
+
+    # Find the start of the actual report (PSYCHOLOGICAL ASSESSMENT REPORT title)
+    # Everything before this is conversational and should be stripped
+    report_text = all_assistant
+    for title_marker in [
+        'PSYCHOLOGICAL ASSESSMENT REPORT',
+        '# PSYCHOLOGICAL ASSESSMENT REPORT',
+        '## PSYCHOLOGICAL ASSESSMENT REPORT',
+    ]:
+        idx = report_text.find(title_marker)
+        if idx != -1:
+            report_text = report_text[idx:]
+            break
 
     # Trim everything after REPORT COMPLETE marker if present
     for marker in ['## REPORT COMPLETE', '## Report Complete', 'REPORT COMPLETE']:
-        if marker in report_text:
-            report_text = report_text[:report_text.index(marker)].strip()
+        idx = report_text.find(marker)
+        if idx != -1:
+            report_text = report_text[:idx].strip()
             break
+
+    # Strip trailing conversational sign-off lines (anything after the last
+    # substantive recommendation or "Report Completed By" block)
+    _TRAIL_MARKERS = [
+        'does this look correct', 'shall i proceed', 'would you like',
+        'please review', 'let me know if', 'feel free to',
+    ]
+    lines = report_text.splitlines()
+    cutoff = len(lines)
+    for i in range(len(lines) - 1, max(len(lines) - 10, 0), -1):
+        ll = lines[i].strip().lower()
+        if any(ll.startswith(m) for m in _TRAIL_MARKERS):
+            cutoff = i
+    report_text = '\n'.join(lines[:cutoff]).strip()
 
     if not report_text.strip():
         return jsonify({'error': 'No report content found. Please generate the report first.'}), 400
