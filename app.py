@@ -330,14 +330,16 @@ def report_export():
     )
 
     # Find the start of the actual report (PSYCHOLOGICAL ASSESSMENT REPORT title)
-    # Everything before this is conversational and should be stripped
+    # Use the LAST occurrence — if the AI made an empty draft first (e.g. because
+    # a file couldn't be read) and then produced the real report later, we want
+    # the final version, not the first empty placeholder.
     report_text = all_assistant
     for title_marker in [
         'PSYCHOLOGICAL ASSESSMENT REPORT',
         '# PSYCHOLOGICAL ASSESSMENT REPORT',
         '## PSYCHOLOGICAL ASSESSMENT REPORT',
     ]:
-        idx = report_text.find(title_marker)
+        idx = report_text.rfind(title_marker)  # rfind = last occurrence
         if idx != -1:
             report_text = report_text[idx:]
             break

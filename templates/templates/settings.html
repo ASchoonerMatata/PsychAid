@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Settings — PsychAid{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+  <div class="settings-card">
+    <div class="settings-card-title">
+      <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+        <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+      Settings
+    </div>
+
+    <div id="settings-form"
+         data-settings='{{ settings | tojson }}'
+         data-providers='{{ provider_options | tojson }}'>
+
+      <!-- AI Provider -->
+      <div class="settings-field">
+        <label class="settings-label" for="provider">AI Provider</label>
+        <select id="provider" class="settings-input">
+          {% for name, p in provider_options.items() %}
+          <option value="{{ name }}" {% if settings.provider == name %}selected{% endif %}>{{ p.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Auth mode -->
+      <div class="settings-field">
+        <label class="settings-label">Authentication</label>
+        <div class="auth-options">
+          <label class="radio-card">
+            <input type="radio" name="auth-mode" value="api_key" {% if settings.auth_mode == 'api_key' %}checked{% endif %}>
+            <span class="radio-card-body">
+              <strong>Use my API key</strong>
+              <small>Store a key on this device</small>
+            </span>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="auth-mode" value="subscription" {% if settings.auth_mode == 'subscription' %}checked{% endif %}>
+            <span class="radio-card-body">
+              <strong>Use environment credential</strong>
+              <small id="subscription-help">Use a variable set on this computer</small>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <!-- API Key -->
+      <div class="settings-field" id="api-key-group">
+        <label class="settings-label" for="api-key">New API Key</label>
+        <input type="password" id="api-key" class="settings-input" placeholder="Enter a new key" autocomplete="new-password">
+        <p class="settings-hint">
+          <span id="key-status" class="key-status"></span>
+          Leave blank to keep the saved key unchanged.
+        </p>
+      </div>
+
+      <!-- Model override -->
+      <div class="settings-field">
+        <label class="settings-label" for="model">
+          Model Override
+          <span class="settings-optional">optional</span>
+        </label>
+        <input type="text" id="model" class="settings-input" value="{{ settings.model }}" placeholder="" autocomplete="off">
+        <p class="settings-hint">Leave blank to use <strong id="default-model"></strong>.</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="settings-actions">
+        <button class="settings-save" onclick="saveSettings()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Settings
+        </button>
+        <button class="btn-test" id="test-provider-btn" onclick="testProvider()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+          Test connection
+        </button>
+      </div>
+      <p class="settings-hint" style="margin-top:8px">Connection test uses saved settings.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
