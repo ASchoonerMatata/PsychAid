@@ -170,9 +170,39 @@ def report_to_docx(text, client_name=''):
     # ── Clear body content, preserve header/footer (they live in sectPr refs) ─
     body = doc.element.body
     W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+    R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
     for child in list(body):
         if child.tag in (f'{{{W_NS}}}p', f'{{{W_NS}}}tbl'):
             body.remove(child)
+
+    # ── Ensure the logo header appears on ALL pages including page 1 ──────────
+    # Find the body-level sectPr and locate the "default" header rId (the one
+    # with the logo). Then add a matching "first" headerReference with the same
+    # rId and set titlePg so Word uses it on page 1.
+    sectPr = body.find(f'{{{W_NS}}}sectPr')
+    if sectPr is not None:
+        # Find the default header rId
+        default_rid = None
+        for href in sectPr.findall(f'{{{W_NS}}}headerReference'):
+            htype = href.get(f'{{{W_NS}}}type', '')
+            if htype == 'default':
+                default_rid = href.get(f'{{{R_NS}}}id', '')
+                break
+        if default_rid:
+            # Add a "first" page header pointing to the same logo header
+            first_exists = any(
+                h.get(f'{{{W_NS}}}type') == 'first'
+                for h in sectPr.findall(f'{{{W_NS}}}headerReference')
+            )
+            if not first_exists:
+                first_href = OxmlElement('w:headerReference')
+                first_href.set(f'{{{W_NS}}}type', 'first')
+                first_href.set(f'{{{R_NS}}}id', default_rid)
+                sectPr.insert(0, first_href)
+            # Enable "different first page" so Word uses the first-page header
+            if sectPr.find(f'{{{W_NS}}}titlePg') is None:
+                titlePg = OxmlElement('w:titlePg')
+                sectPr.append(titlePg)
 
     # ── Style lookup helper ───────────────────────────────────────────────────
     def _style(name):
@@ -194,27 +224,40 @@ def report_to_docx(text, client_name=''):
 
     # ── Paragraph builders ────────────────────────────────────────────────────
     def add_cover(text, bold=False):
-        """'paragraph' custom style — cover page items."""
+        """'paragraph' custom style — cover page items, centred."""
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
         p = doc.add_paragraph(style=_style('paragraph'))
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         _add_runs(p, text, default_bold=bold)
         return p
 
     def add_client_field(label, value):
-        """Bold label + normal value on one paragraph line."""
+        """Bold label + normal value on one paragraph line, centred."""
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
         p = doc.add_paragraph(style=_style('paragraph'))
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(label)
         r.bold = True
         if value:
             p.add_run(' ' + value)
         return p
 
+    _first_heading_done = [False]  # mutable so inner function can update it
+
     def add_heading(text):
-        """Normal style + bold — ALL CAPS section headings."""
+        """Normal style + bold — ALL CAPS section headings.
+        The very first heading (REASON FOR REFERRAL) gets a page break before it."""
+        from docx.oxml.ns import qn
         p = doc.add_paragraph(style=_style('Normal'))
         run = p.add_run(text)
         run.bold = True
-        p.paragraph_format.space_before = Pt(10)
         p.paragraph_format.space_after = Pt(2)
+        if not _first_heading_done[0]:
+            # Page break before the first content section
+            p.paragraph_format.page_break_before = True
+            _first_heading_done[0] = True
+        else:
+            p.paragraph_format.space_before = Pt(10)
         return p
 
     def add_body(text):
