@@ -231,31 +231,61 @@ def report_to_docx(text, client_name=''):
         _add_runs(p, text, default_bold=bold)
         return p
 
+    def add_hrule():
+        """Insert a VML horizontal rule matching the template (gray line across page)."""
+        from lxml import etree
+        hr_xml = (
+            '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+            ' xmlns:v="urn:schemas-microsoft-com:vml"'
+            ' xmlns:o="urn:schemas-microsoft-com:office:office">'
+            '<w:pPr>'
+            '<w:pStyle w:val="paragraph"/>'
+            '<w:spacing w:before="120" w:beforeAutospacing="0"'
+            ' w:after="120" w:afterAutospacing="0"/>'
+            '<w:jc w:val="center"/>'
+            '</w:pPr>'
+            '<w:r>'
+            '<w:rPr><w:rFonts w:ascii="Cambria" w:hAnsi="Cambria"/>'
+            '<w:noProof/><w:color w:val="000000"/></w:rPr>'
+            '<w:pict>'
+            '<v:rect style="width:451.3pt;height:.05pt" fillcolor="#a0a0a0" stroked="f"'
+            ' o:hr="t" o:hrstd="t" o:hralign="center"/>'
+            '</w:pict>'
+            '</w:r>'
+            '</w:p>'
+        )
+        placeholder = doc.add_paragraph()
+        new_el = etree.fromstring(hr_xml)
+        placeholder._element.getparent().replace(placeholder._element, new_el)
+
     def add_client_field(label, value):
-        """Bold label + normal value on one paragraph line, centred."""
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        """Bold label + normal value, left-aligned within the cover block."""
         p = doc.add_paragraph(style=_style('paragraph'))
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(label)
         r.bold = True
         if value:
             p.add_run(' ' + value)
         return p
 
-    _first_heading_done = [False]  # mutable so inner function can update it
+    # ASSESSMENTS lives on the cover page (centred, no page break).
+    # The first *content* heading (REASON FOR REFERRAL and onwards) gets a page break.
+    _first_content_heading_done = [False]
 
-    def add_heading(text):
-        """Normal style + bold — ALL CAPS section headings.
-        The very first heading (REASON FOR REFERRAL) gets a page break before it."""
-        from docx.oxml.ns import qn
+    def add_heading(text, cover=False):
+        """Normal style + bold — ALL CAPS section headings."""
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
         p = doc.add_paragraph(style=_style('Normal'))
         run = p.add_run(text)
         run.bold = True
         p.paragraph_format.space_after = Pt(2)
-        if not _first_heading_done[0]:
-            # Page break before the first content section
+        if cover:
+            # ASSESSMENTS: centred on the cover page, no page break
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(8)
+        elif not _first_content_heading_done[0]:
+            # First real content heading → start on a new page
             p.paragraph_format.page_break_before = True
-            _first_heading_done[0] = True
+            _first_content_heading_done[0] = True
         else:
             p.paragraph_format.space_before = Pt(10)
         return p
@@ -291,6 +321,8 @@ def report_to_docx(text, client_name=''):
 
     # ── Cover page items ──────────────────────────────────────────────────────
     COVER_ITEMS = {'PSYCHOLOGICAL ASSESSMENT REPORT', 'CONFIDENTIAL', 'CLIENT DETAILS'}
+    # ASSESSMENTS stays on the cover page (centred, no page break before it)
+    COVER_HEADINGS = {'ASSESSMENTS'}
 
     CLIENT_FIELD_LABELS = (
         'Client name:', 'Date of birth:', 'Age at time of testing:',
@@ -317,6 +349,11 @@ def report_to_docx(text, client_name=''):
                 and not re.match(r'^\d+[\.\)]\s', bare))
 
     # ── Parse and render lines ────────────────────────────────────────────────
+    # State tracking for horizontal rules around CLIENT DETAILS block
+    _after_client_details = [False]   # we've seen CLIENT DETAILS heading
+    _in_client_fields = [False]       # currently inside the client field block
+    _client_fields_closed = [False]   # closing hrule already inserted
+
     lines = text.split('\n')
     i = 0
     while i < len(lines):
@@ -327,13 +364,18 @@ def report_to_docx(text, client_name=''):
             i += 1
             continue
 
-        # Skip horizontal rules
+        # Skip markdown horizontal rules
         if re.match(r'^[-*]{3,}$', stripped):
             i += 1
             continue
 
         # Markdown table
         if stripped.startswith('|') and stripped.endswith('|'):
+            # Close client-field block if still open
+            if _in_client_fields[0] and not _client_fields_closed[0]:
+                add_hrule()
+                _in_client_fields[0] = False
+                _client_fields_closed[0] = True
             table_rows = []
             while i < len(lines) and lines[i].strip().startswith('|'):
                 row = lines[i].strip()
@@ -350,15 +392,20 @@ def report_to_docx(text, client_name=''):
         clean = re.sub(r'^#{1,3}\s*', '', stripped).strip()
         bare = re.sub(r'^\*+|\*+$', '', clean).strip()
 
-        # Cover page: title/confidential/client details header
+        # Cover page: PSYCHOLOGICAL ASSESSMENT REPORT / CONFIDENTIAL / CLIENT DETAILS
         if bare in COVER_ITEMS:
             bold = bare != 'CONFIDENTIAL'
             add_cover(bare, bold=bold)
+            if bare == 'CLIENT DETAILS':
+                _after_client_details[0] = True
             i += 1
             continue
 
-        # Client detail field lines
+        # Client detail field lines — open hrule block on first field
         if _is_client_field(clean):
+            if _after_client_details[0] and not _in_client_fields[0]:
+                add_hrule()          # opening rule above first field
+                _in_client_fields[0] = True
             label, value = _parse_client_field(clean)
             if label:
                 add_client_field(label, value)
@@ -367,10 +414,17 @@ def report_to_docx(text, client_name=''):
             i += 1
             continue
 
+        # Any non-field content after client fields → close hrule block
+        if _in_client_fields[0] and not _client_fields_closed[0]:
+            add_hrule()              # closing rule below last field
+            _in_client_fields[0] = False
+            _client_fields_closed[0] = True
+
         # ALL CAPS section heading or markdown heading
         is_md_heading = bool(re.match(r'^#{1,3}\s', stripped))
         if is_md_heading or _is_all_caps_heading(clean):
-            add_heading(bare)
+            is_cover_heading = bare in COVER_HEADINGS
+            add_heading(bare, cover=is_cover_heading)
             i += 1
             continue
 
