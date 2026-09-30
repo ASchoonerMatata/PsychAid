@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install pyinstaller pywebview flask anthropic pillow reportlab python-docx
+          pip install pyinstaller pywebview flask anthropic pillow reportlab python-docx mammoth pypdf
 
       - name: Build Mac app
         run: |
@@ -36,6 +36,7 @@ jobs:
             --hidden-import anthropic \
             --hidden-import flask \
             --hidden-import webview \
+            --collect-all webview \
             main.py
 
       - name: Create DMG
@@ -69,7 +70,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install pyinstaller pywebview flask anthropic pillow reportlab python-docx
+          pip install pyinstaller "pywebview>=4.0" pythonnet flask anthropic pillow reportlab python-docx mammoth pypdf
 
       - name: Build Windows exe
         run: |
@@ -83,6 +84,9 @@ jobs:
             --hidden-import anthropic `
             --hidden-import flask `
             --hidden-import webview `
+            --hidden-import webview.platforms.edgechromium `
+            --hidden-import webview.platforms.winforms `
+            --collect-all webview `
             main.py
 
       - name: Zip Windows build
