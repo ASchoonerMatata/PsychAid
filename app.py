@@ -17,7 +17,7 @@ app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25 MB upload limit
 from scales_data import SCALES
 from report_generator import (
     load_config, save_config, generate_report, report_to_docx,
-    extract_text, load_skill_prompt
+    extract_text, load_skill_prompt, generate_step_report, step_to_docx
 )
 from providers import PROVIDERS, ProviderError, auth_status, resolve_provider
 # pdf_forms imported lazily inside route — avoids Pillow arch crash at startup
@@ -237,12 +237,15 @@ def report_start():
         return jsonify({'error': str(e)}), 400
 
     client_name = request.form.get('client_name', '').strip()
+    assessment_type = request.form.get('assessment_type', '').strip()
     files = request.files.getlist('files')
     if not files or all(f.filename == '' for f in files):
         return jsonify({'error': 'Please upload at least one document.'}), 400
 
     doc_parts = []
+    file_names = []
     for f in files:
+        file_names.append(f.filename)
         try:
             data = f.read()
             text = extract_text(data, f.filename)
@@ -252,8 +255,9 @@ def report_start():
 
     doc_combined = '\n\n'.join(doc_parts)
     label = f"for {client_name}" if client_name else "for this client"
+    type_note = f" — Assessment type: {assessment_type}" if assessment_type else ""
     initial_msg = (
-        f"Documents uploaded {label}:\n\n{doc_combined}\n\n"
+        f"Documents uploaded {label}{type_note}:\n\n{doc_combined}\n\n"
         "Generate the complete psychological assessment report now. "
         "Start with PSYCHOLOGICAL ASSESSMENT REPORT and output every section in order. "
         "If you reach your output limit before finishing, stop at a clean section boundary "
@@ -275,6 +279,9 @@ def report_start():
         "session_id": session_id,
         "history": history,
         "client_name": client_name,
+        "assessment_type": assessment_type,
+        "file_names": file_names,
+        "doc_combined": doc_combined,   # kept for STEP export
         "started": now,
         "updated": now,
     }
@@ -393,9 +400,51 @@ def api_load_session(sid):
     return jsonify({
         'session_id': sid,
         'client_name': conv.get('client_name', ''),
+        'assessment_type': conv.get('assessment_type', ''),
+        'file_names': conv.get('file_names', []),
         'started': conv.get('started', ''),
         'history': display,
     })
+
+
+@app.route('/api/report/export-step', methods=['POST'])
+def report_export_step():
+    cfg = load_config()
+    data = request.get_json()
+    session_id = data.get('session_id', '')
+
+    if session_id not in _conversations:
+        if _load_session_from_disk(session_id) is None:
+            return jsonify({'error': 'Session not found. Please start a new report.'}), 404
+
+    conv = _conversations[session_id]
+    doc_combined = conv.get('doc_combined', '')
+    if not doc_combined:
+        # Fallback: extract from first history message
+        history = conv.get('history', [])
+        if history:
+            raw = history[0].get('content', '')
+            # Content is "Documents uploaded for X:\n\n{docs}\n\nGenerate..."
+            import re as _re
+            m = _re.search(r'Documents uploaded[^\n]*:\n\n(.+?)\n\nGenerate', raw, _re.DOTALL)
+            doc_combined = m.group(1) if m else raw
+
+    if not doc_combined.strip():
+        return jsonify({'error': 'No document content found to generate STEP report from.'}), 400
+
+    try:
+        step_text = generate_step_report(doc_combined, cfg)
+    except ProviderError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    client_name = conv.get('client_name', '')
+    docx_bytes = step_to_docx(step_text, client_name)
+    filename = f"{_sanitize_download_name(client_name)}_STEP_Report.docx"
+    return send_file(io.BytesIO(docx_bytes),
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        as_attachment=True, download_name=filename)
 
 
 @app.route('/api/sessions/<sid>', methods=['DELETE'])

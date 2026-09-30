@@ -446,3 +446,127 @@ def report_to_docx(text, client_name=''):
     doc.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# ── STEP mini report ──────────────────────────────────────────────────────────
+
+STEP_SYSTEM_PROMPT = """You are generating a STEP Assessment Report — a brief, non-diagnostic screening summary.
+
+The STEP report must contain EXACTLY the following, in order:
+
+1. A title line: STEP Assessment Report
+
+2. BACKGROUND INFORMATION
+   One short paragraph (2–4 sentences) covering only: client's age, gender, who referred them, and the primary reason for referral. Nothing else.
+
+3. SCREENER SUMMARIES
+   For each screener/questionnaire administered, write ONE paragraph that:
+   - Names the screener and who completed it (e.g. parent, teacher, self)
+   - States the raw scores or totals as reported in the score report
+   - Describes what domain was measured and what ratings were endorsed (factual only)
+   - Does NOT interpret, diagnose, or draw clinical conclusions
+
+4. CONSISTENCY AND INCONSISTENCY SUMMARY
+   One paragraph noting where screeners agree with each other and where they differ. Factual only — no diagnostic conclusions, no clinical interpretation.
+
+Rules you must follow:
+- This document is a SCREENING TOOL, not a clinical report
+- Do NOT include diagnoses or diagnostic impressions
+- Do NOT interpret scores clinically (no "elevated", "clinically significant", "meets criteria")
+- Do NOT include recommendations
+- Do NOT include background history beyond age/gender/referral reason
+- Do NOT include cognitive assessment results, IQ scores, or index scores
+- Keep language plain, professional, and factual
+- Output headings in ALL CAPS, body text as plain paragraphs
+- The entire document should be no longer than one page
+"""
+
+
+def generate_step_report(doc_text, cfg):
+    """Generate a STEP screening summary from the raw document text."""
+    from providers import resolve_provider
+    provider, api_key, model = resolve_provider(cfg)
+    return provider['generate'](
+        STEP_SYSTEM_PROMPT,
+        f"Generate a STEP Assessment Report from the following uploaded documents:\n\n{doc_text}",
+        api_key,
+        model
+    )
+
+
+def step_to_docx(text, client_name=''):
+    """Convert STEP report text to a clean Word document."""
+    import re
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    doc = Document()
+
+    # Page margins
+    for section in doc.sections:
+        section.top_margin = Pt(72)
+        section.bottom_margin = Pt(72)
+        section.left_margin = Pt(90)
+        section.right_margin = Pt(90)
+
+    lines = text.strip().split('\n')
+    title_done = False
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        # Strip markdown heading prefix
+        clean = re.sub(r'^#{1,3}\s*', '', stripped).strip()
+        bare = re.sub(r'^\*+|\*+$', '', clean).strip()
+
+        # Title line
+        if not title_done and 'STEP' in bare.upper() and 'ASSESSMENT' in bare.upper():
+            p = doc.add_paragraph()
+            run = p.add_run(bare)
+            run.bold = True
+            run.font.size = Pt(16)
+            run.font.color.rgb = RGBColor(0x1a, 0x2d, 0x4f)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_after = Pt(14)
+            title_done = True
+            continue
+
+        # ALL CAPS section heading
+        bare_plain = re.sub(r'\*+', '', bare).strip()
+        if bare_plain.isupper() and len(bare_plain) > 3:
+            p = doc.add_paragraph()
+            run = p.add_run(bare_plain)
+            run.bold = True
+            run.font.size = Pt(10)
+            run.font.color.rgb = RGBColor(0x1a, 0x2d, 0x4f)
+            p.paragraph_format.space_before = Pt(10)
+            p.paragraph_format.space_after = Pt(4)
+            continue
+
+        # Bullet
+        if re.match(r'^[-*•]\s+', stripped):
+            p = doc.add_paragraph(style='List Bullet')
+            content = re.sub(r'^[-*•]\s+', '', stripped)
+            p.add_run(content)
+            p.paragraph_format.space_after = Pt(2)
+            continue
+
+        # Body paragraph
+        p = doc.add_paragraph()
+        p.add_run(bare)
+        p.paragraph_format.space_after = Pt(6)
+
+    if client_name:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(14)
+        run = p.add_run(f'Client: {client_name}')
+        run.font.size = Pt(8)
+        run.font.color.rgb = RGBColor(0x94, 0xa3, 0xb8)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf.read()
