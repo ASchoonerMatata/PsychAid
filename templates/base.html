@@ -14,45 +14,6 @@
   <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxODAgNTIiPgogIDxjaXJjbGUgY3g9IjI2IiBjeT0iMjYiIHI9IjIwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjcpIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8dGV4dCB4PSIyNiIgeT0iMjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJjZW50cmFsIiBmb250LWZhbWlseT0iR2VvcmdpYSxzZXJpZiIgZm9udC1zaXplPSIyMiIgZmlsbD0iI2ZmZiIgZm9udC13ZWlnaHQ9IjQwMCI+JiM5MzY7PC90ZXh0PgogIDx0ZXh0IHg9IjU2IiB5PSIyNCIgZm9udC1mYW1pbHk9IidTZWdvZSBVSScsc3lzdGVtLXVpLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTciIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNmZmYiIGxldHRlci1zcGFjaW5nPSItMC4zIj5Qc3ljaDwvdGV4dD4KICA8dGV4dCB4PSIxMDciIHk9IjI0IiBmb250LWZhbWlseT0iJ1NlZ29lIFVJJyxpbmhlcml0IiBmb250LXNpemU9IjE3IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjNTJiNzg4IiBsZXR0ZXItc3BhY2luZz0iLTAuMyI+QWlkPC90ZXh0PgogIDx0ZXh0IHg9IjU3IiB5PSIzOCIgZm9udC1mYW1pbHk9IidTZWdvZSBVSScsaW5oZXJpdCIgZm9udC1zaXplPSI4IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LC40KSIgbGV0dGVyLXNwYWNpbmc9IjEuOCI+UFNZQ0hPTE9HWSBUT09MUzwvdGV4dD4KPC9zdmc+" alt="PsychAid" class="nav-logo">
   </a>
 
-  <!-- Screeners dropdown -->
-  <div class="screeners-dropdown">
-    <button class="nav-btn" onclick="toggleScreeners()">
-      <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-      Screeners
-      <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-    </button>
-    <div class="screeners-menu" id="screeners-menu">
-      <div class="sc-group-title">ADHD</div>
-      <a class="sc-link" onclick="downloadForm('snap4','parent')">SNAP-IV — Parent</a>
-      <a class="sc-link" onclick="downloadForm('snap4','teacher')">SNAP-IV — Teacher</a>
-      <a class="sc-link" onclick="downloadForm('vanderbilt','parent')">Vanderbilt — Parent</a>
-      <a class="sc-link" onclick="downloadForm('vanderbilt','teacher')">Vanderbilt — Teacher</a>
-      <div class="sc-divider"></div>
-      <div class="sc-group-title">Behaviour</div>
-      <a class="sc-link" onclick="downloadForm('sdq','parent')">SDQ — Parent</a>
-      <a class="sc-link" onclick="downloadForm('sdq','teacher')">SDQ — Teacher</a>
-      <a class="sc-link" onclick="downloadForm('sdq','self')">SDQ — Youth Self</a>
-      <div class="sc-divider"></div>
-      <div class="sc-group-title">ASD &amp; Social</div>
-      <a class="sc-link" onclick="downloadForm('aq10','adult')">AQ-10 — Adult</a>
-      <a class="sc-link" onclick="downloadForm('aq10','child')">AQ-10 — Child</a>
-      <a class="sc-link" onclick="downloadForm('catq','self')">CATq — Self</a>
-      <div class="sc-divider"></div>
-      <div class="sc-group-title">Anxiety</div>
-      <a class="sc-link" onclick="downloadForm('scared','child')">SCARED — Child</a>
-      <a class="sc-link" onclick="downloadForm('scared','parent')">SCARED — Parent</a>
-      <a class="sc-link" onclick="downloadForm('gad7','self')">GAD-7</a>
-      <div class="sc-divider"></div>
-      <div class="sc-group-title">Mood &amp; Depression</div>
-      <a class="sc-link" onclick="downloadForm('phq9','self')">PHQ-9 — Adult</a>
-      <a class="sc-link" onclick="downloadForm('phqa','self')">PHQ-A — Adolescent</a>
-      <a class="sc-link" onclick="downloadForm('dass21','self')">DASS-21</a>
-      <div class="sc-divider"></div>
-      <div class="sc-group-title">Sleep</div>
-      <a class="sc-link" onclick="downloadForm('epworth','self')">Epworth Sleepiness Scale</a>
-    </div>
-  </div>
-
   <!-- Settings -->
   <a href="/settings" class="nav-icon-btn" title="Settings">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -69,17 +30,6 @@
 <div id="toast" class="toast"></div>
 
 <script src="{{ url_for('static', filename='app.js') }}"></script>
-<script>
-function toggleScreeners() {
-  document.getElementById('screeners-menu').classList.toggle('open');
-}
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.screeners-dropdown')) {
-    var m = document.getElementById('screeners-menu');
-    if (m) m.classList.remove('open');
-  }
-});
-</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
