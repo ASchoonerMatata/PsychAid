@@ -279,15 +279,29 @@ if __name__ == '__main__':
         _webview_error = e
 
     if _webview_error is not None:
-        _show_webview_error(_webview_error)
-        # Only fall back to browser on non-Windows; on Windows show the error
-        # so the user knows they need the WebView2 runtime.
-        if sys.platform != 'win32':
-            _flask_ready(timeout=60)
-            import webbrowser
-            webbrowser.open('http://127.0.0.1:5050')
+        # Fall back to system browser on all platforms
+        _flask_ready(timeout=60)
+        import webbrowser
+        webbrowser.open('http://127.0.0.1:5050')
+        # On Windows, also show a helpful tip about WebView2 for next time
+        if sys.platform == 'win32':
             try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                sys.exit(0)
+                import tkinter as tk
+                from tkinter import messagebox
+                root = tk.Tk(); root.withdraw()
+                messagebox.showinfo(
+                    "PsychAid — Opening in Browser",
+                    "PsychAid has opened in your browser.\n\n"
+                    "For a better experience as a dedicated app window, install the "
+                    "Microsoft Edge WebView2 Runtime (free, from Microsoft):\n\n"
+                    "https://developer.microsoft.com/microsoft-edge/webview2/\n\n"
+                    "After installing, relaunch PsychAid."
+                )
+                root.destroy()
+            except Exception:
+                pass
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            sys.exit(0)
