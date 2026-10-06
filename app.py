@@ -17,7 +17,8 @@ app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25 MB upload limit
 from scales_data import SCALES
 from report_generator import (
     load_config, save_config, generate_report, report_to_docx,
-    extract_text, load_skill_prompt, generate_step_report, step_to_docx
+    extract_text, extract_images, load_skill_prompt,
+    generate_step_report, step_to_docx
 )
 from providers import PROVIDERS, ProviderError, auth_status, resolve_provider
 # pdf_forms imported lazily inside route — avoids Pillow arch crash at startup
@@ -43,6 +44,45 @@ def upload_too_large(error):
 
 SESSIONS_DIR = os.path.join(os.path.expanduser('~'), '.psychaid', 'sessions')
 os.makedirs(SESSIONS_DIR, exist_ok=True)
+
+
+def _images_dir(sid):
+    return os.path.join(SESSIONS_DIR, sid + '_images')
+
+
+def _save_session_images(sid, images):
+    """Persist extracted images to disk. images = [(bytes, caption), ...]"""
+    if not images:
+        return
+    d = _images_dir(sid)
+    os.makedirs(d, exist_ok=True)
+    for i, (img_bytes, caption) in enumerate(images):
+        img_path = os.path.join(d, f'img_{i:04d}.png')
+        cap_path = os.path.join(d, f'img_{i:04d}.txt')
+        with open(img_path, 'wb') as f:
+            f.write(img_bytes)
+        with open(cap_path, 'w', encoding='utf-8') as f:
+            f.write(caption)
+
+
+def _load_session_images(sid):
+    """Load images saved for a session. Returns [(bytes, caption), ...]"""
+    d = _images_dir(sid)
+    if not os.path.isdir(d):
+        return []
+    images = []
+    for fname in sorted(os.listdir(d)):
+        if not fname.endswith('.png'):
+            continue
+        img_path = os.path.join(d, fname)
+        cap_path = img_path.replace('.png', '.txt')
+        caption = ''
+        if os.path.exists(cap_path):
+            with open(cap_path, encoding='utf-8') as f:
+                caption = f.read().strip()
+        with open(img_path, 'rb') as f:
+            images.append((f.read(), caption))
+    return images
 
 _conversations = {}  # in-memory cache
 
@@ -244,12 +284,19 @@ def report_start():
 
     doc_parts = []
     file_names = []
+    all_images = []   # (png_bytes, caption) accumulated across all files
     for f in files:
         file_names.append(f.filename)
         try:
             data = f.read()
             text = extract_text(data, f.filename)
             doc_parts.append(f"=== {f.filename} ===\n{text.strip()}")
+            # Extract chart/graph images (silently skip failures)
+            try:
+                imgs = extract_images(data, f.filename)
+                all_images.extend(imgs)
+            except Exception:
+                pass
         except Exception as e:
             doc_parts.append(f"=== {f.filename} ===\n[Could not extract: {e}]")
 
@@ -286,6 +333,8 @@ def report_start():
         "updated": now,
     }
     _persist_session(session_id)
+    # Save extracted images to disk for use at export time
+    _save_session_images(session_id, all_images)
     return jsonify({"session_id": session_id, "message": ai_msg})
 
 
@@ -376,7 +425,8 @@ def report_export():
         return jsonify({'error': 'No report content found. Please generate the report first.'}), 400
 
     client_name = conv.get('client_name', '')
-    docx_bytes = report_to_docx(report_text, client_name)
+    images = _load_session_images(session_id)   # [] if none were extracted
+    docx_bytes = report_to_docx(report_text, client_name, images=images)
     filename = f"{_sanitize_download_name(client_name)}_Report.docx"
     return send_file(io.BytesIO(docx_bytes),
         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -453,6 +503,11 @@ def api_delete_session(sid):
     path = _session_path(sid)
     if os.path.exists(path):
         os.remove(path)
+    # Clean up extracted images
+    import shutil
+    img_dir = _images_dir(sid)
+    if os.path.isdir(img_dir):
+        shutil.rmtree(img_dir, ignore_errors=True)
     return jsonify({'ok': True})
 
 

@@ -78,6 +78,73 @@ def extract_text(file_bytes, filename):
     else:
         return file_bytes.decode('utf-8', errors='replace')
 
+
+# Minimum pixel dimensions to consider an image a "graph/chart" (not a logo or icon)
+_IMG_MIN_WIDTH  = 250
+_IMG_MIN_HEIGHT = 150
+
+
+def extract_images(file_bytes, filename):
+    """Extract chart/graph images from an uploaded PDF or DOCX.
+    Returns a list of (png_bytes, caption_str) tuples.
+    Small images (logos, icons) are skipped.
+    """
+    ext = os.path.splitext(filename)[1].lower()
+    results = []
+    base = os.path.basename(filename)
+
+    if ext == '.pdf':
+        try:
+            import pypdf
+            from PIL import Image as _PIL
+            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+            for page_num, page in enumerate(reader.pages, start=1):
+                try:
+                    for img_obj in page.images:
+                        try:
+                            pil_img = img_obj.image          # PIL Image
+                            if (pil_img.width < _IMG_MIN_WIDTH
+                                    or pil_img.height < _IMG_MIN_HEIGHT):
+                                continue
+                            buf = io.BytesIO()
+                            pil_img.convert('RGB').save(buf, format='PNG')
+                            results.append((buf.getvalue(),
+                                            f'{base} — page {page_num}'))
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    elif ext in ('.docx', '.doc'):
+        try:
+            from docx import Document as _Doc
+            from PIL import Image as _PIL
+            doc = _Doc(io.BytesIO(file_bytes))
+            seen_blobs = set()
+            for rel in doc.part.rels.values():
+                if 'image' not in rel.reltype.lower():
+                    continue
+                try:
+                    blob = rel.target_part.blob
+                    if id(blob) in seen_blobs:
+                        continue
+                    seen_blobs.add(id(blob))
+                    pil_img = _PIL.open(io.BytesIO(blob))
+                    if (pil_img.width < _IMG_MIN_WIDTH
+                            or pil_img.height < _IMG_MIN_HEIGHT):
+                        continue
+                    buf = io.BytesIO()
+                    pil_img.convert('RGB').save(buf, format='PNG')
+                    results.append((buf.getvalue(), base))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    return results
+
 SYSTEM_PROMPT = """You are a clinical report assistant for an Australian psychology practice. 
 You receive assessment documents, intake forms, and score reports uploaded by a psychologist. 
 Your task is to synthesise the information into a structured psychological report.
@@ -140,7 +207,7 @@ def generate_report(files, cfg):
         model
     )
 
-def report_to_docx(text, client_name=''):
+def report_to_docx(text, client_name='', images=None):
     """
     Convert AI-generated report markdown to a styled Word document.
     Uses the 4Thought template (report_template.docx) which defines:
@@ -441,6 +508,26 @@ def report_to_docx(text, client_name=''):
         # Body paragraph
         add_body(clean)
         i += 1
+
+    # ── Embed score profile graphs (full report only) ─────────────────────────
+    if images:
+        from docx.shared import Inches, RGBColor as _RGB
+        add_heading('SCORE PROFILES')
+        for idx, (img_bytes, caption) in enumerate(images, start=1):
+            try:
+                p = doc.add_paragraph(style=_style('Normal'))
+                run = p.add_run()
+                run.add_picture(io.BytesIO(img_bytes), width=Inches(5.5))
+                p.paragraph_format.space_after = Pt(4)
+            except Exception:
+                pass
+            if caption:
+                cap = doc.add_paragraph(style=_style('Normal'))
+                cap_run = cap.add_run(f'Figure {idx}: {caption}')
+                cap_run.italic = True
+                cap_run.font.size = Pt(8)
+                cap_run.font.color.rgb = _RGB(0x64, 0x74, 0x8b)
+                cap.paragraph_format.space_after = Pt(10)
 
     buf = io.BytesIO()
     doc.save(buf)
