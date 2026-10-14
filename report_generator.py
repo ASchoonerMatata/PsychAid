@@ -539,7 +539,7 @@ def report_to_docx(text, client_name='', images=None):
 
 STEP_SYSTEM_PROMPT = """You are generating a STEP Assessment Report — a brief, non-diagnostic screening summary.
 
-The STEP report must contain EXACTLY the following, in order:
+The STEP report must contain EXACTLY the following sections, in order:
 
 1. A title line: STEP Assessment Report
 
@@ -556,25 +556,53 @@ The STEP report must contain EXACTLY the following, in order:
 4. CONSISTENCY AND INCONSISTENCY SUMMARY
    One paragraph noting where screeners agree with each other and where they differ. Factual only — no diagnostic conclusions, no clinical interpretation.
 
+5. RECOMMENDATIONS
+   Based on the screener results and referral concerns, include ONLY the categories that are relevant to this client. For each relevant category, include no more than 2–3 of the most important recommendations from the bank, condensed to a single sentence each where possible. Begin this section with the note:
+   "The following recommendations are provided as a screening-level guide only. A full psychological assessment would provide more targeted and detailed recommendations."
+   Use the RECOMMENDATIONS BANK below to select and condense from. Do not invent new recommendations outside the bank.
+
 Rules you must follow:
 - This document is a SCREENING TOOL, not a clinical report
 - Do NOT include diagnoses or diagnostic impressions
 - Do NOT interpret scores clinically (no "elevated", "clinically significant", "meets criteria")
-- Do NOT include recommendations
 - Do NOT include background history beyond age/gender/referral reason
 - Do NOT include cognitive assessment results, IQ scores, or index scores
 - Keep language plain, professional, and factual
 - Output headings in ALL CAPS, body text as plain paragraphs
-- The entire document should be no longer than one page
+- Sections 1–4 should be concise (aim for one page); the RECOMMENDATIONS section may extend to a second page if needed
 """
+
+_STEP_RECS_BANK_PATH = os.path.join(os.path.dirname(__file__), 'skill', '4thought-report', 'SKILL.md')
+
+def _load_recs_bank():
+    """Extract the Full Recommendations Bank section from SKILL.md."""
+    try:
+        with open(_STEP_RECS_BANK_PATH, encoding='utf-8') as f:
+            content = f.read()
+        # Find everything from the bank header onwards
+        marker = '## Full Recommendations Bank'
+        idx = content.find(marker)
+        if idx == -1:
+            return ''
+        # Stop at the next ## heading (Handling Missing or Partial Information)
+        end_marker = '## Handling Missing'
+        end_idx = content.find(end_marker, idx)
+        bank = content[idx:end_idx] if end_idx != -1 else content[idx:]
+        return bank.strip()
+    except Exception:
+        return ''
 
 
 def generate_step_report(doc_text, cfg):
     """Generate a STEP screening summary from the raw document text."""
     from providers import resolve_provider
     provider, api_key, model = resolve_provider(cfg)
+    recs_bank = _load_recs_bank()
+    system = STEP_SYSTEM_PROMPT
+    if recs_bank:
+        system = system + '\n\n---\n\n' + recs_bank
     return provider['generate'](
-        STEP_SYSTEM_PROMPT,
+        system,
         f"Generate a STEP Assessment Report from the following uploaded documents:\n\n{doc_text}",
         api_key,
         model
