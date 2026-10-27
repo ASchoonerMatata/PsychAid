@@ -537,39 +537,83 @@ def report_to_docx(text, client_name='', images=None):
 
 # ── STEP mini report ──────────────────────────────────────────────────────────
 
-STEP_SYSTEM_PROMPT = """You are generating a STEP Assessment Report — a brief, non-diagnostic screening summary.
+STEP_SYSTEM_PROMPT = """You are generating a STEP Assessment Report — a non-diagnostic screening summary based on background questionnaire responses and screener results.
 
-The STEP report must contain EXACTLY the following sections, in order:
+Your job is to extract and summarise ALL information provided in the uploaded documents. Do not leave out any section of the background questionnaire that has been completed. Write in a plain, professional, factual tone throughout.
 
-1. A title line: STEP Assessment Report
+The STEP report must contain the following sections in order. Only include a section if relevant information was provided; omit it entirely if no information is available for that section.
 
-2. BACKGROUND INFORMATION
-   One short paragraph (2–4 sentences) covering only: client's age, gender, who referred them, and the primary reason for referral. Nothing else.
+---
 
-3. SCREENER SUMMARIES
-   For each screener/questionnaire administered, write ONE paragraph that:
-   - Names the screener and who completed it (e.g. parent, teacher, self)
-   - States the raw scores or totals as reported in the score report
-   - Describes what domain was measured and what ratings were endorsed (factual only)
-   - Does NOT interpret, diagnose, or draw clinical conclusions
+1. Title line: STEP Assessment Report
 
-4. CONSISTENCY AND INCONSISTENCY SUMMARY
-   One paragraph noting where screeners agree with each other and where they differ. Factual only — no diagnostic conclusions, no clinical interpretation.
+2. REFERRAL AND DEMOGRAPHIC INFORMATION
+   Summarise: client's name (or initials), date of birth / age, gender, language(s) spoken at home, ethnicity/cultural background (if provided), school/year level or place of work/study, referrer name/role/organisation, date of referral, and whether the referral is self-initiated. For child clients, include parent/guardian names and whether they will attend the Discovery Session.
 
-5. RECOMMENDATIONS
-   Based on the screener results and referral concerns, include ONLY the categories that are relevant to this client. For each relevant category, include no more than 2–3 of the most important recommendations from the bank, condensed to a single sentence each where possible. Begin this section with the note:
-   "The following recommendations are provided as a screening-level guide only. A full psychological assessment would provide more targeted and detailed recommendations."
-   Use the RECOMMENDATIONS BANK below to select and condense from. Do not invent new recommendations outside the bank.
+3. PRIMARY CONCERNS
+   Summarise in paragraph form the primary concerns described by the client or parent/guardian, including: what the key concerns are, when they were first noticed and by whom, what situations or triggers worsen them, whether there were significant life stressors around the time concerns first emerged, and how concerns have changed over time.
+
+4. DEVELOPMENTAL HISTORY
+   Summarise relevant developmental history including: whether the pregnancy was planned, any pregnancy or birth complications, gestational age and birth type, developmental milestone attainment (note any delays or regressions), temperament in infancy/toddlerhood, capacity for interactive and independent play, self-soothing ability, and response to separation from caregivers.
+
+5. HEALTH AND MEDICAL HISTORY
+   Health & Medical: Summarise any significant medical conditions, hospitalisations, surgeries, medication use, or hearing/vision difficulties.
+   Sleep: Summarise current sleep patterns, duration, and any concerns.
+   Diet: Note any dietary restrictions, food group exclusions, or concerns about eating patterns.
+   Sensory Sensitivity: Describe any sensory sensitivities or sensory-seeking behaviours (types, responses, age of onset).
+
+6. BEHAVIOUR
+   Summarise the client's typical daily routine, noting any particularly challenging parts of the day. Describe any repetitive behaviours, movements or speech (stimming). Note any strong routines, interests or rigidity. Describe typical energy level.
+
+7. EMOTIONAL FUNCTIONING
+   Summarise which emotional patterns were endorsed (e.g., anxiety, mood changes, anger, sadness, fearfulness), when these were first noticed, and how the client/child responds. Note any difficulties with transitions or unexpected changes, and whether physical aggression toward self or others was reported.
+
+8. SCHOOL, LEARNING, AND WORK
+   Summarise any concerns about school or work functioning, areas of academic difficulty or ease, subjects of strength or difficulty, any adjustments or supports that have been implemented and their effectiveness, how the client has managed school/educational transitions, and overall school/work satisfaction.
+
+9. FRIENDSHIPS AND SOCIAL EXPERIENCES
+   Summarise current and past friendship patterns (number, quality), how friendships are formed and maintained, and any difficulties with social situations, inclusion, conflict, or bullying.
+
+10. STRENGTHS
+    Summarise the client's/child's identified strengths, interests, and what is currently going well.
+
+11. RISK AND SAFETY
+    Report any disclosures in this section factually and without elaboration. Note whether the client has engaged in harmful behaviours toward self or others (current or past), and whether there have been any thoughts of self-harm or suicide. Note whether any such behaviours or thoughts are described as ongoing.
+    If nothing was disclosed, state: "No concerns were reported in this area."
+
+12. PREVIOUS SUPPORTS AND ASSESSMENTS
+    Summarise any previous professional involvement (counsellors, psychologists, psychiatrists, OTs, speech therapists, paediatricians), previous screening or assessment history, any formal diagnoses received, and whether written reports are available.
+
+13. CLIENT AND FAMILY GOALS
+    Summarise what the client or family is hoping to understand or achieve through the STEP program, and any additional information they wished to share.
+
+14. SCREENER SUMMARIES
+    For each screener/questionnaire administered (score reports), write ONE paragraph that:
+    - Names the screener and who completed it (e.g. parent, teacher, self)
+    - States the raw scores or totals as reported
+    - Describes what domain was measured and what ratings were endorsed (factual only)
+    - Does NOT interpret, diagnose, or draw clinical conclusions
+
+15. CONSISTENCY AND INCONSISTENCY SUMMARY
+    One paragraph noting where the screener results align with each other and with the background questionnaire information, and where they differ. Factual only — no diagnostic conclusions.
+
+16. RECOMMENDATIONS
+    Based on the background information and screener results, include ONLY the categories relevant to this client. For each category, include no more than 2–3 of the most important recommendations, condensed to a single sentence each where possible. Begin with:
+    "The following recommendations are provided as a screening-level guide only. A full psychological assessment would provide more targeted and detailed recommendations."
+    Use the RECOMMENDATIONS BANK below. Do not invent recommendations outside the bank.
+
+---
 
 Rules you must follow:
 - This document is a SCREENING TOOL, not a clinical report
 - Do NOT include diagnoses or diagnostic impressions
 - Do NOT interpret scores clinically (no "elevated", "clinically significant", "meets criteria")
-- Do NOT include background history beyond age/gender/referral reason
 - Do NOT include cognitive assessment results, IQ scores, or index scores
-- Keep language plain, professional, and factual
+- Report all background information factually and in the client's/parent's own terms — do not embellish or draw conclusions
+- Use Australian English throughout (behaviour, paediatric, programme, etc.)
 - Output headings in ALL CAPS, body text as plain paragraphs
-- Sections 1–4 should be concise (aim for one page); the RECOMMENDATIONS section may extend to a second page if needed
+- Refer to the client by first name throughout (or as provided in the documents)
+- If a section of the questionnaire was left blank or not provided, omit that section entirely
 """
 
 _STEP_RECS_BANK_PATH = os.path.join(os.path.dirname(__file__), 'skill', '4thought-report', 'SKILL.md')
@@ -595,15 +639,17 @@ def _load_recs_bank():
 
 def generate_step_report(doc_text, cfg):
     """Generate a STEP screening summary from the raw document text."""
+    import datetime
     from providers import resolve_provider
     provider, api_key, model = resolve_provider(cfg)
     recs_bank = _load_recs_bank()
     system = STEP_SYSTEM_PROMPT
     if recs_bank:
         system = system + '\n\n---\n\n' + recs_bank
+    today = datetime.date.today().strftime('%-d %B %Y')
     return provider['generate'](
         system,
-        f"Generate a STEP Assessment Report from the following uploaded documents:\n\n{doc_text}",
+        f"Today's date is {today}. Use this exact date wherever a report date is required.\n\nGenerate a STEP Assessment Report from the following uploaded documents:\n\n{doc_text}",
         api_key,
         model
     )
@@ -611,10 +657,16 @@ def generate_step_report(doc_text, cfg):
 
 def step_to_docx(text, client_name=''):
     """Convert STEP report text to a clean Word document."""
-    import re
+    import re, datetime
     from docx import Document
     from docx.shared import Pt, RGBColor
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    # Replace any literal date placeholder the AI may have output
+    today = datetime.date.today().strftime('%-d %B %Y')
+    text = re.sub(r'\[Today\'?s?\s+date\]', today, text, flags=re.IGNORECASE)
+    text = re.sub(r'\[Date\]', today, text, flags=re.IGNORECASE)
+    text = re.sub(r'\[INSERT DATE\]', today, text, flags=re.IGNORECASE)
 
     doc = Document()
 
