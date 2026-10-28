@@ -56,14 +56,12 @@ def upload_too_large(error):
 
 # ── Session persistence ───────────────────────────────────────────────────────
 
-# Use ~/.psychaid on desktop; fall back to /tmp on read-only filesystems (e.g. Vercel)
-_home_sessions = os.path.join(os.path.expanduser('~'), '.psychaid', 'sessions')
-try:
-    os.makedirs(_home_sessions, exist_ok=True)
-    SESSIONS_DIR = _home_sessions
-except OSError:
+# On Vercel/Lambda the home directory is read-only; use /tmp instead
+if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
     SESSIONS_DIR = '/tmp/psychaid_sessions'
-    os.makedirs(SESSIONS_DIR, exist_ok=True)
+else:
+    SESSIONS_DIR = os.path.join(os.path.expanduser('~'), '.psychaid', 'sessions')
+os.makedirs(SESSIONS_DIR, exist_ok=True)
 
 
 def _images_dir(sid):
