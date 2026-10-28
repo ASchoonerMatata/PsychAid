@@ -5,6 +5,20 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ── Server-mode detection ─────────────────────────────────────────────────────
+# When ANTHROPIC_API_KEY is present in the environment (e.g. on Vercel),
+# we run in "server mode": the key is held server-side, the settings UI
+# is hidden, and no user-supplied key is required.
+SERVER_MODE = bool(os.environ.get('ANTHROPIC_API_KEY', '').strip())
+
+def _server_cfg():
+    """Config dict that reads the API key from the environment variable."""
+    return {
+        'provider': 'anthropic',
+        'auth_mode': 'subscription',
+        'model': os.environ.get('PSYCHAID_MODEL', 'claude-opus-4-5'),
+    }
+
 from flask import Flask, render_template, request, jsonify, send_file
 import io
 
@@ -42,8 +56,14 @@ def upload_too_large(error):
 
 # ── Session persistence ───────────────────────────────────────────────────────
 
-SESSIONS_DIR = os.path.join(os.path.expanduser('~'), '.psychaid', 'sessions')
-os.makedirs(SESSIONS_DIR, exist_ok=True)
+# Use ~/.psychaid on desktop; fall back to /tmp on read-only filesystems (e.g. Vercel)
+_home_sessions = os.path.join(os.path.expanduser('~'), '.psychaid', 'sessions')
+try:
+    os.makedirs(_home_sessions, exist_ok=True)
+    SESSIONS_DIR = _home_sessions
+except OSError:
+    SESSIONS_DIR = '/tmp/psychaid_sessions'
+    os.makedirs(SESSIONS_DIR, exist_ok=True)
 
 
 def _images_dir(sid):
@@ -163,19 +183,21 @@ def _chat_turn(history, cfg, max_tokens=2000):
 
 @app.route('/')
 def index():
-    cfg = load_config()
-    return render_template('assessment.html', scales=SCALES, auth_status=auth_status(cfg))
+    cfg = _server_cfg() if SERVER_MODE else load_config()
+    return render_template('assessment.html', scales=SCALES,
+                           auth_status=auth_status(cfg), server_mode=SERVER_MODE)
 
 
 @app.route('/assessment')
 def assessment():
-    cfg = load_config()
-    return render_template('assessment.html', scales=SCALES, auth_status=auth_status(cfg))
+    cfg = _server_cfg() if SERVER_MODE else load_config()
+    return render_template('assessment.html', scales=SCALES,
+                           auth_status=auth_status(cfg), server_mode=SERVER_MODE)
 
 
 @app.route('/settings')
 def settings():
-    cfg = load_config()
+    cfg = _server_cfg() if SERVER_MODE else load_config()
     provider_options = {
         name: {
             'label': p['label'],
@@ -195,6 +217,29 @@ def settings():
         provider_options=provider_options, settings=public_settings)
 
 
+# ── Server-side AI proxy ──────────────────────────────────────────────────────
+
+@app.route('/api/generate', methods=['POST'])
+def api_generate():
+    """Server-side AI proxy. Holds the Anthropic key in ANTHROPIC_API_KEY env var.
+    Accepts {system_prompt, user_text} and returns {text}.
+    Request and response bodies are NOT logged or stored."""
+    data = request.get_json(silent=True) or {}
+    system_prompt = data.get('system_prompt', '').strip()
+    user_text = data.get('user_text', '').strip()
+    if not system_prompt or not user_text:
+        return jsonify({'error': 'system_prompt and user_text are required.'}), 400
+    cfg = _server_cfg() if SERVER_MODE else load_config()
+    try:
+        provider, api_key, model = resolve_provider(cfg)
+        text = provider['generate'](system_prompt, user_text, api_key, model)
+        return jsonify({'text': text})
+    except ProviderError as exc:
+        return jsonify({'error': str(exc)}), 500
+    except Exception:
+        return jsonify({'error': 'Unexpected error during generation.'}), 500
+
+
 # ── Settings API ──────────────────────────────────────────────────────────────
 
 @app.route('/api/save-settings', methods=['POST'])
@@ -207,7 +252,7 @@ def save_settings():
     if auth_mode not in ('api_key', 'subscription'):
         return jsonify({'error': 'Choose a valid authentication mode.'}), 400
 
-    cfg = load_config()
+    cfg = _server_cfg() if SERVER_MODE else load_config()
     cfg['provider'] = provider
     cfg['model'] = data.get('model', '').strip() if isinstance(data.get('model'), str) else ''
     cfg['auth_mode'] = auth_mode
@@ -227,7 +272,7 @@ def save_settings():
 @app.route('/api/test-provider', methods=['POST'])
 def test_provider():
     try:
-        provider, api_key, model = resolve_provider(load_config())
+        provider, api_key, model = resolve_provider(_server_cfg() if SERVER_MODE else load_config())
         provider['generate'](
             'This is a connection test. Follow the user instruction exactly.',
             'Reply with only: OK',
@@ -251,7 +296,7 @@ def api_generate_report():
     files = [(f.filename, f.read()) for f in uploads]
     if not files:
         return jsonify({'error': 'No files uploaded.'}), 400
-    cfg = load_config()
+    cfg = _server_cfg() if SERVER_MODE else load_config()
     try:
         report_text = generate_report(files, cfg)
         client_name = request.form.get('client_name', '')
@@ -270,7 +315,7 @@ def api_generate_report():
 
 @app.route('/api/report/start', methods=['POST'])
 def report_start():
-    cfg = load_config()
+    cfg = _server_cfg() if SERVER_MODE else load_config()
     try:
         resolve_provider(cfg)  # validate config early
     except ProviderError as e:
@@ -340,7 +385,7 @@ def report_start():
 
 @app.route('/api/report/message', methods=['POST'])
 def report_message():
-    cfg = load_config()
+    cfg = _server_cfg() if SERVER_MODE else load_config()
     data = request.get_json()
     session_id = data.get('session_id', '')
     user_msg = data.get('message', '').strip()
@@ -369,7 +414,7 @@ def report_message():
 
 @app.route('/api/report/export', methods=['POST'])
 def report_export():
-    cfg = load_config()
+    cfg = _server_cfg() if SERVER_MODE else load_config()
     data = request.get_json()
     session_id = data.get('session_id', '')
 
@@ -459,7 +504,7 @@ def api_load_session(sid):
 
 @app.route('/api/report/export-step', methods=['POST'])
 def report_export_step():
-    cfg = load_config()
+    cfg = _server_cfg() if SERVER_MODE else load_config()
     data = request.get_json()
     session_id = data.get('session_id', '')
 
